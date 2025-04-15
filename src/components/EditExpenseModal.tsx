@@ -3,18 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Database } from '../lib/database.types';
-import { X } from 'lucide-react'; // Icon for closing modal
+import { X, Loader2, CheckCircle, AlertTriangle } from 'lucide-react'; // Icons
 
-// Define types based on your schema
 type Expense = Database['public']['Tables']['expenses']['Row'];
 type Category = Database['public']['Tables']['categories']['Row'];
 
 interface EditExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => void; // Callback after successful save
-  expense: Expense | null; // The expense to edit
-  categories: Category[]; // Pass categories from parent
+  onSave: () => void;
+  expense: Expense | null;
+  categories: Category[]; // Receive categories as prop
 }
 
 export default function EditExpenseModal({
@@ -22,13 +21,13 @@ export default function EditExpenseModal({
   onClose,
   onSave,
   expense,
-  categories,
+  categories, // Use passed categories
 }: EditExpenseModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Form state - initialize when expense prop changes
+  // Form state
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
@@ -38,17 +37,15 @@ export default function EditExpenseModal({
   useEffect(() => {
     if (expense && isOpen) {
       setDescription(expense.description || '');
-      // Ensure amount is treated as string for input field
-      setAmount(String(expense.amount));
-      // Format date correctly for input type="date" (YYYY-MM-DD)
+      setAmount(String(expense.amount)); // Keep as string for input
       setExpenseDate(expense.expense_date ? new Date(expense.expense_date).toISOString().split('T')[0] : '');
       setSelectedCategoryId(expense.category_id);
-      setError(null); // Clear errors when opening
-      setSuccessMessage(null); // Clear success messages
+      setError(null);
+      setSuccessMessage(null);
     }
-    // Reset form when modal closes or expense is null
+    // Reset form state when modal closes or expense becomes null
     if (!isOpen) {
-        // Optionally reset fields here if needed when closing without saving
+        // Optional: Explicitly clear fields if desired, though useEffect above handles repopulation
         // setDescription(''); setAmount(''); setExpenseDate(''); setSelectedCategoryId(null);
     }
   }, [expense, isOpen]);
@@ -56,12 +53,11 @@ export default function EditExpenseModal({
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!expense) return; // Should not happen if modal is open
+    if (!expense) return;
 
     setError(null);
     setSuccessMessage(null);
 
-    // Basic validation
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setError('Please enter a valid positive amount.');
@@ -80,23 +76,21 @@ export default function EditExpenseModal({
         description: description.trim(),
         expense_date: expenseDate,
         category_id: selectedCategoryId || null,
-        // user_id should not change, and created_at is handled by DB
       };
 
       const { error: updateError } = await supabase
         .from('expenses')
         .update(updatedData)
-        .eq('id', expense.id); // Ensure we update the correct expense
+        .eq('id', expense.id);
 
       if (updateError) throw updateError;
 
       setSuccessMessage('Expense updated successfully!');
-      onSave(); // Trigger refetch in parent component
-      // Keep modal open briefly to show success? Or close immediately?
-      // Let's close after a short delay
+      onSave(); // Trigger refetch in parent
+
       setTimeout(() => {
-        onClose(); // Close the modal
-      }, 1500); // Close after 1.5 seconds
+        onClose(); // Close the modal after showing success
+      }, 1500);
 
     } catch (error: any) {
       console.error('Error updating expense:', error);
@@ -106,12 +100,10 @@ export default function EditExpenseModal({
     }
   };
 
-  // Prevent rendering if not open or no expense data
   if (!isOpen || !expense) {
     return null;
   }
 
-  // Handle clicking outside the modal content to close
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -120,20 +112,24 @@ export default function EditExpenseModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-300"
-      onClick={handleOverlayClick} // Close on overlay click
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      onClick={handleOverlayClick}
+      aria-labelledby="modal-title"
+      role="dialog"
+      aria-modal="true"
     >
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 relative transform transition-all duration-300 scale-100">
+      <div className={`bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 relative transform transition-all duration-300 ${isOpen ? 'scale-100' : 'scale-95'}`}>
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+          disabled={loading}
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 disabled:opacity-50"
           aria-label="Close modal"
         >
           <X size={24} />
         </button>
 
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Edit Expense</h2>
+        <h2 id="modal-title" className="text-xl font-semibold mb-4 text-gray-800">Edit Expense</h2>
 
         <form onSubmit={handleSave} className="space-y-4">
           {/* Description */}
@@ -146,7 +142,7 @@ export default function EditExpenseModal({
               id="edit-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
               placeholder="e.g., Coffee, Lunch"
               maxLength={200}
               disabled={loading}
@@ -163,7 +159,7 @@ export default function EditExpenseModal({
               id="edit-amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
               placeholder="0.00"
               step="0.01"
               min="0.01"
@@ -182,7 +178,7 @@ export default function EditExpenseModal({
               id="edit-expenseDate"
               value={expenseDate}
               onChange={(e) => setExpenseDate(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
               required
               disabled={loading}
             />
@@ -197,7 +193,7 @@ export default function EditExpenseModal({
               id="edit-category"
               value={selectedCategoryId ?? ''}
               onChange={(e) => setSelectedCategoryId(e.target.value || null)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm disabled:bg-gray-100"
               disabled={loading || categories.length === 0}
             >
               <option value="">-- Select Category (Optional) --</option>
@@ -213,8 +209,16 @@ export default function EditExpenseModal({
           </div>
 
           {/* Feedback Messages */}
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
+          {error && (
+            <p className="text-sm text-red-600 flex items-center gap-1">
+                <AlertTriangle size={16} /> {error}
+            </p>
+          )}
+          {successMessage && (
+            <p className="text-sm text-green-600 flex items-center gap-1">
+                <CheckCircle size={16} /> {successMessage}
+            </p>
+          )}
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-3 pt-4">
@@ -229,8 +233,9 @@ export default function EditExpenseModal({
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center justify-center min-w-[110px]" // Min width to prevent size change
             >
+              {loading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>

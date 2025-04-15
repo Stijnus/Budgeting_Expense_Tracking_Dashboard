@@ -95,3 +95,4 @@ A simple web application built with React, TypeScript, Vite, Tailwind CSS, and S
 *   **Mobile Responsiveness:** Ensure the application looks and works well on different screen sizes.
 *   **Recurring Expenses:** Add functionality to handle recurring expenses automatically.
 *   **Tags/Labels:** Allow adding tags to expenses for more granular tracking.
+*   **Household Budgeting:** Allow users to create or join a household, so multiple family members can contribute expenses to a shared budget.
