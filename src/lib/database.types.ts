@@ -136,16 +136,16 @@ export type Database = {
           },
         ]
       }
-      // New incomes table
+      // Existing incomes table
       incomes: {
           Row: {
             id: string
             user_id: string
             amount: number
             description: string | null
-            income_date: string // date type maps to string
-            created_at: string // timestamptz maps to string
-            updated_at: string // timestamptz maps to string
+            income_date: string
+            created_at: string
+            updated_at: string
           }
           Insert: {
             id?: string
@@ -170,11 +170,75 @@ export type Database = {
               foreignKeyName: "incomes_user_id_fkey"
               columns: ["user_id"]
               isOneToOne: false
-              referencedRelation: "users" // Assumes relation to auth.users
+              referencedRelation: "users"
               referencedColumns: ["id"]
             }
           ]
         }
+      // New tags table
+      tags: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      // New expense_tags join table
+      expense_tags: {
+        Row: {
+          expense_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          expense_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: { // Usually not updated directly
+          expense_id?: string
+          tag_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_tags_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

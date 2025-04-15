@@ -7,8 +7,10 @@ import ExpenseList from './components/ExpenseList'
 import CategoryPieChart from './components/CategoryPieChart'
 import SpendingTrendChart from './components/SpendingTrendChart'
 import BudgetManager from './components/BudgetManager'
-import IncomeForm from './components/IncomeForm' // Import IncomeForm
-import IncomeList from './components/IncomeList' // Import IncomeList
+import IncomeForm from './components/IncomeForm'
+import IncomeList from './components/IncomeList'
+import MonthlyReport from './components/MonthlyReport'
+import UserProfile from './components/UserProfile' // Import UserProfile
 import type { Session } from '@supabase/supabase-js'
 import { Loader2 } from 'lucide-react';
 
@@ -19,7 +21,7 @@ function App() {
   const refetchExpensesRef = useRef<(() => void) | null>(null);
   const refetchPieChartRef = useRef<(() => void) | null>(null);
   const refetchTrendChartRef = useRef<(() => void) | null>(null);
-  // Trigger for IncomeList refetch (simple approach)
+  // Trigger for IncomeList refetch
   const [incomeListTrigger, setIncomeListTrigger] = useState(0);
 
   useEffect(() => {
@@ -52,15 +54,14 @@ function App() {
     console.log("Triggering refetch for List and Charts...");
     if (refetchExpensesRef.current) refetchExpensesRef.current();
     if (refetchPieChartRef.current) refetchPieChartRef.current();
-    if (refetchTrendChartRef.current) refetchTrendChartRef.current(); // Expense changes affect trend chart
-    // Note: Expense changes might affect budget progress, but BudgetManager fetches its own data currently.
+    if (refetchTrendChartRef.current) refetchTrendChartRef.current();
   };
 
   // Callback for Income changes
   const handleIncomeAddedOrUpdated = () => {
     console.log("Triggering refetch for Income List and Trend Chart...");
-    setIncomeListTrigger(prev => prev + 1); // Increment trigger to refetch IncomeList
-    if (refetchTrendChartRef.current) refetchTrendChartRef.current(); // Income changes affect trend chart
+    setIncomeListTrigger(prev => prev + 1);
+    if (refetchTrendChartRef.current) refetchTrendChartRef.current();
   };
 
 
@@ -95,29 +96,30 @@ function App() {
               </button>
             </div>
           </header>
-          {/* Main Grid: Adjust columns for income section */}
-          <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Main Grid: Adjust columns */}
+          <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            {/* Column 1: Categories & Budgets */}
-            <div className="md:col-span-1 lg:col-span-1 space-y-8">
+            {/* Column 1: Categories, Budgets, Profile */}
+            <div className="lg:col-span-1 space-y-8">
               <Categories />
               <BudgetManager />
+              <UserProfile /> {/* Add User Profile Here */}
             </div>
 
             {/* Column 2: Income & Expenses Forms/Lists */}
-            <div className="md:col-span-1 lg:col-span-1 space-y-8">
+            <div className="lg:col-span-1 space-y-8">
                <IncomeForm onIncomeAdded={handleIncomeAddedOrUpdated} />
                <IncomeList triggerRefetch={incomeListTrigger} />
                <ExpenseForm onExpenseAdded={handleExpenseAddedOrUpdated} />
+               <MonthlyReport />
             </div>
 
             {/* Column 3: Expense List & Charts */}
-            <div className="md:col-span-2 lg:col-span-1 space-y-8"> {/* Span 2 on medium, 1 on large */}
+            <div className="lg:col-span-1 space-y-8">
               <ExpenseList
                 setRefetch={(refetchFn) => { refetchExpensesRef.current = refetchFn; }}
                 onExpenseUpdated={handleExpenseAddedOrUpdated}
               />
-              {/* Keep charts here, maybe stack them vertically now */}
               <div className="grid grid-cols-1 gap-8">
                 <CategoryPieChart
                   setRefetch={(refetchFn) => { refetchPieChartRef.current = refetchFn; }}

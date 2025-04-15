@@ -1,6 +1,6 @@
-# Budget Tracker
+# 💸 Budget Tracker
 
-A simple web application built with React, TypeScript, Vite, Tailwind CSS, and Supabase to track personal expenses.
+A simple web application built with **React**, **TypeScript**, **Vite**, **Tailwind CSS**, and **Supabase** to track personal expenses.
 
 ## Features
 
@@ -36,6 +36,84 @@ A simple web application built with React, TypeScript, Vite, Tailwind CSS, and S
 ├── tsconfig.node.json    # TypeScript configuration (for Node env)
 └── vite.config.ts        # Vite configuration
 ```
+
+## Layout Components: Sidebar, Navbar, and Footer
+
+To improve overall navigation and structure, you can implement a consistent layout across the app that includes:
+
+### 🧭 Navbar
+
+The top navigation bar can include:
+
+* **App Logo / Title** – clickable and redirects to the homepage or dashboard.
+* **User Info** – show the logged-in user's name/email.
+* **Logout Button** – allows users to sign out quickly.
+* **Optional Links** – such as “Dashboard”, “Profile”, or “Reports”.
+
+#### Suggested Components:
+* `components/layout/Navbar.tsx`
+* Tailwind styles: sticky top positioning, flex layout, and responsive design.
+
+---
+
+### 📂 Sidebar
+
+The sidebar provides quick access to key sections of the app:
+
+* **Dashboard Overview**
+* **Categories**
+* **Expenses**
+* **Reports (future)**
+* **Settings/Profile**
+* **Household Management** (if implemented)
+
+#### Features:
+* Collapsible behavior on smaller screens (mobile-friendly).
+* Highlight the active route.
+* Can use icons (e.g., [Lucide](https://lucide.dev/), Heroicons, etc.) for visual clarity.
+
+#### Suggested Components:
+* `components/layout/Sidebar.tsx`
+* Use `react-router` or `@tanstack/router` to manage active links.
+
+---
+
+### 📎 Footer
+
+The footer sits at the bottom of the page and can include:
+
+* App version or build info.
+* Credits or copyright.
+* Links to terms/privacy or support.
+
+#### Suggested Components:
+* `components/layout/Footer.tsx`
+* Optional sticky footer using `flex-grow` on main content wrapper.
+
+---
+
+### 🧱 Layout Integration
+
+Create a wrapper layout that includes all three components:
+
+```tsx
+// components/layout/AppLayout.tsx
+
+return (
+  <div className="flex flex-col min-h-screen">
+    <Navbar />
+    <div className="flex flex-1">
+      <Sidebar />
+      <main className="flex-1 p-4">
+        {children}
+      </main>
+    </div>
+    <Footer />
+  </div>
+);
+```
+
+---
 
 ## Setup and Running Locally
 
@@ -81,6 +159,8 @@ A simple web application built with React, TypeScript, Vite, Tailwind CSS, and S
     ```
     The application should now be running, and you can access it via the URL provided by Vite.
 
+---
+
 ## Potential Feature Improvements
 
 *   **Edit Functionality:** Allow users to edit existing expenses and categories.
@@ -96,3 +176,4 @@ A simple web application built with React, TypeScript, Vite, Tailwind CSS, and S
 *   **Recurring Expenses:** Add functionality to handle recurring expenses automatically.
 *   **Tags/Labels:** Allow adding tags to expenses for more granular tracking.
 *   **Household Budgeting:** Allow users to create or join a household, so multiple family members can contribute expenses to a shared budget.
+*   **App Layout Improvements:** Add a sidebar, top navigation bar, and footer for better navigation and structure across the app.

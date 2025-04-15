@@ -1,13 +1,96 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Database } from '../lib/database.types'
-import { Loader2, CheckCircle } from 'lucide-react'; // Import icons
+import { Loader2, CheckCircle, AlertTriangle, Tag } from 'lucide-react'; // Import icons
 
 type Category = Database['public']['Tables']['categories']['Row']
+type TagType = Database['public']['Tables']['tags']['Row'] // Use TagType alias
 
 interface ExpenseFormProps {
   onExpenseAdded: () => void // Callback to notify parent when an expense is added
 }
+
+// Helper function to handle tag creation and linking
+async function handleTags(userId: string, expenseId: string, tagString: string): Promise<string[]> {
+    const tagNames = tagString.split(',')
+        .map(tag => tag.trim().toLowerCase()) // Normalize: trim whitespace, convert to lowercase
+        .filter(tag => tag.length > 0 && tag.length <= 50) // Filter empty tags and enforce max length
+        .slice(0, 10); // Limit number of tags per expense
+
+    if (tagNames.length === 0) return []; // No tags to process
+
+    const uniqueTagNames = [...new Set(tagNames)]; // Ensure unique tags
+    const errors: string[] = [];
+
+    // 1. Find existing tags or create new ones
+    const tagPromises = uniqueTagNames.map(async (name): Promise<TagType | null> => {
+        // Check if tag exists for the user (case-insensitive)
+        let { data: existingTag, error: findError } = await supabase
+            .from('tags')
+            .select('id, name, user_id, created_at') // Select all columns needed for TagType
+            .eq('user_id', userId)
+            .ilike('name', name) // Case-insensitive search
+            .maybeSingle();
+
+        if (findError) {
+            errors.push(`Error finding tag "${name}": ${findError.message}`);
+            return null;
+        }
+
+        if (existingTag) {
+            return existingTag;
+        } else {
+            // Create new tag if it doesn't exist
+            const { data: newTag, error: createError } = await supabase
+                .from('tags')
+                .insert({ user_id: userId, name: name })
+                .select('id, name, user_id, created_at') // Select all columns
+                .single();
+
+            if (createError) {
+                // Handle potential unique constraint violation if another process created it concurrently
+                if (createError.code === '23505') {
+                     // Try fetching again just in case it was created concurrently
+                     let { data: retryTag, error: retryError } = await supabase
+                        .from('tags')
+                        .select('id, name, user_id, created_at')
+                        .eq('user_id', userId)
+                        .ilike('name', name)
+                        .maybeSingle();
+                     if (retryError) errors.push(`Error retrying tag fetch "${name}": ${retryError.message}`);
+                     else if (retryTag) return retryTag;
+                     else errors.push(`Failed to create or find tag "${name}" after conflict.`); // Should not happen often
+                } else {
+                    errors.push(`Error creating tag "${name}": ${createError.message}`);
+                }
+                return null;
+            }
+            return newTag;
+        }
+    });
+
+    const resolvedTags = (await Promise.all(tagPromises)).filter((tag): tag is TagType => tag !== null); // Filter out nulls from errors
+
+    // 2. Link tags to the expense
+    if (resolvedTags.length > 0) {
+        const links = resolvedTags.map(tag => ({
+            expense_id: expenseId,
+            tag_id: tag.id,
+        }));
+
+        const { error: linkError } = await supabase.from('expense_tags').insert(links);
+
+        if (linkError) {
+            // Ignore primary key violations (tag already linked), log others
+            if (linkError.code !== '23505') {
+                 errors.push(`Error linking tags: ${linkError.message}`);
+            }
+        }
+    }
+
+    return errors; // Return array of error messages, if any
+}
+
 
 export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
   const [loading, setLoading] = useState(false)
@@ -15,19 +98,19 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
-  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]) // Default to today
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
+  const [tags, setTags] = useState(''); // State for comma-separated tags
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [fetchingCategories, setFetchingCategories] = useState(true); // State for category loading
+  const [fetchingCategories, setFetchingCategories] = useState(true);
 
-  const descriptionInputRef = useRef<HTMLInputElement>(null); // Ref for focusing description input
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch categories for the dropdown
   useEffect(() => {
-    let isMounted = true; // Prevent state update on unmounted component
+    let isMounted = true;
     const fetchCategories = async () => {
       setFetchingCategories(true);
-      setError(null); // Clear previous errors related to categories
+      setError(null);
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (sessionError || !session?.user) throw sessionError || new Error('User not logged in')
@@ -45,7 +128,7 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
       } catch (error: any) {
         console.error('Error fetching categories for form:', error)
         if (isMounted) {
-            setError('Could not load categories. Please try refreshing.') // More specific error
+            setError('Could not load categories. Please try refreshing.')
         }
       } finally {
         if (isMounted) {
@@ -54,7 +137,7 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
       }
     }
     fetchCategories();
-    return () => { isMounted = false; }; // Cleanup function
+    return () => { isMounted = false; };
   }, [])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -72,11 +155,13 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
     }
 
     setLoading(true)
+    let newExpenseId: string | null = null;
 
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw userError || new Error('User not found')
 
+      // 1. Insert Expense
       const expenseData = {
         user_id: user.id,
         amount: parseFloat(amount),
@@ -84,36 +169,57 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
         expense_date: expenseDate,
         category_id: selectedCategoryId || null,
       }
-
-      const { error: insertError } = await supabase.from('expenses').insert(expenseData)
+      const { data: newExpense, error: insertError } = await supabase
+        .from('expenses')
+        .insert(expenseData)
+        .select('id') // Select only the ID
+        .single(); // Expect a single row back
 
       if (insertError) throw insertError
+      if (!newExpense?.id) throw new Error("Failed to get new expense ID.");
+      newExpenseId = newExpense.id;
 
-      // Reset form and show success
+      // 2. Handle Tags
+      const tagErrors = await handleTags(user.id, newExpenseId, tags);
+      if (tagErrors.length > 0) {
+          // Show tag errors, but the expense was still added
+          setError(`Expense added, but failed to process some tags: ${tagErrors.join(', ')}`);
+      } else {
+          setSuccessMessage('Expense and tags added successfully!')
+      }
+
+      // Reset form
       setAmount('')
       setDescription('')
       setSelectedCategoryId(null)
-      setExpenseDate(new Date().toISOString().split('T')[0]); // Reset date to today
-      setSuccessMessage('Expense added successfully!')
-      onExpenseAdded() // Notify parent component
-      descriptionInputRef.current?.focus(); // Focus description for next entry
+      setTags(''); // Clear tags input
+      setExpenseDate(new Date().toISOString().split('T')[0]);
+      descriptionInputRef.current?.focus();
 
-      // Clear success message after a few seconds
-      setTimeout(() => setSuccessMessage(null), 3000)
+      onExpenseAdded() // Notify parent component
+
+      // Clear success/error message after a few seconds
+      setTimeout(() => {
+          setSuccessMessage(null);
+          setError(null); // Also clear error if it was just a tag error
+      }, 4000)
 
     } catch (error: any) {
-      console.error('Error adding expense:', error)
+      console.error('Error adding expense or tags:', error)
+      // If expense insert failed, newExpenseId will be null
+      // If tag handling failed after expense insert, newExpenseId will exist
       setError(`Failed to add expense: ${error.message}`)
+      // Consider if cleanup is needed if expense was added but tags failed critically
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow"> {/* Removed mb-8, handled by parent grid gap */}
+    <div className="p-4 bg-white rounded-lg shadow">
       <h2 className="text-xl font-semibold mb-4 text-gray-800">Add New Expense</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Description */}
+        {/* Description, Amount, Date fields remain the same */}
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-700">
             Description
@@ -130,8 +236,6 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
             disabled={loading}
           />
         </div>
-
-        {/* Amount */}
         <div>
           <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
             Amount *
@@ -149,8 +253,6 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
             disabled={loading}
           />
         </div>
-
-        {/* Date */}
         <div>
           <label htmlFor="expenseDate" className="block text-sm font-medium text-gray-700">
             Date *
@@ -193,11 +295,39 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
           )}
         </div>
 
+        {/* Tags Input */}
+        <div>
+          <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+            Tags <span className="text-xs text-gray-500">(comma-separated)</span>
+          </label>
+          <div className="relative mt-1">
+             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Tag size={16} className="text-gray-400" />
+             </div>
+             <input
+                type="text"
+                id="tags"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                placeholder="e.g., work, travel, project-alpha"
+                disabled={loading}
+                maxLength={200} // Limit overall input length
+             />
+          </div>
+           <p className="mt-1 text-xs text-gray-500">Max 10 tags, 50 chars each. Lowercase, trimmed.</p>
+        </div>
+
+
         {/* Feedback Messages */}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+            <p className="text-sm text-red-600 flex items-center gap-1">
+                <AlertTriangle size={16} /> {error}
+            </p>
+        )}
         {successMessage && (
-            <p className="text-sm text-green-600 flex items-center">
-                <CheckCircle size={16} className="mr-1" /> {successMessage}
+            <p className="text-sm text-green-600 flex items-center gap-1">
+                <CheckCircle size={16} /> {successMessage}
             </p>
         )}
 
