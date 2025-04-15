@@ -1,8 +1,8 @@
 // src/components/ExpenseList.tsx
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Database } from '../lib/database.types'
-import { Trash2, Pencil, Loader2, FilterX, ArrowUpDown } from 'lucide-react'; // Added icons
+import { Trash2, Pencil, Loader2, FilterX, ArrowUpDown, Search, X } from 'lucide-react'; // Added Search, X icons
 import EditExpenseModal from './EditExpenseModal';
 
 type Expense = Database['public']['Tables']['expenses']['Row'] & {
@@ -17,8 +17,27 @@ interface ExpenseListProps {
   onExpenseUpdated: () => void; // Callback for when an expense is updated (via modal or delete)
 }
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Cancel the timeout if value changes (also on delay change or unmount)
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]); // Only re-call effect if value or delay changes
+
+  return debouncedValue;
+}
+
+
 export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseListProps) {
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // Unified loading state
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [categories, setCategories] = useState<Category[]>([]) // For filter dropdown
   const [error, setError] = useState<string | null>(null)
@@ -30,17 +49,26 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState<string | ''>('');
+  const [searchTerm, setSearchTerm] = useState(''); // Search state
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce search term by 300ms
 
   // Sorting State
   const [sortColumn, setSortColumn] = useState<SortColumn>('expense_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const fetchExpensesAndCategories = useCallback(async (isInitialLoad = false) => {
-    if (isInitialLoad) {
-        setLoading(true); // Only show full loading state on initial load
+  const searchInputRef = useRef<HTMLInputElement>(null); // Ref for search input
+  const isInitialLoadRef = useRef(true); // Ref to track initial load
+
+  const fetchExpensesAndCategories = useCallback(async () => {
+    // Set loading true only on the very first load triggered by useEffect mount
+    if (isInitialLoadRef.current) {
+        setLoading(true);
+        isInitialLoadRef.current = false; // Mark initial load as complete after the first fetch starts
     } else {
-        // Maybe show a subtle loading indicator near the table/filters?
-        // For now, we rely on the disabled state of buttons.
+        // For subsequent fetches (filters, sort, search, manual refresh),
+        // we might want a different indicator or just rely on disabled controls.
+        // Setting setLoading(true) here would show the full loader again.
+        // Let's keep it simple for now and not show a loader on refetch.
     }
     setError(null)
     try {
@@ -48,8 +76,10 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
       if (sessionError || !session?.user) throw sessionError || new Error('User not logged in')
       const userId = session.user.id;
 
-      // Fetch categories only once on initial load or if needed again
-      if (isInitialLoad || categories.length === 0) {
+      // Fetch categories only if needed (e.g., first load or empty)
+      // This check might be redundant if categories are fetched once and stored,
+      // but kept for robustness if categories could change elsewhere.
+      if (categories.length === 0) {
         const { data: categoriesData, error: categoriesError } = await supabase
           .from('categories')
           .select('*')
@@ -59,7 +89,7 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
         setCategories(categoriesData || []);
       }
 
-      // Build query with filters and sorting
+      // Build query with filters, search, and sorting
       let query = supabase
         .from('expenses')
         .select(`*, categories ( name )`)
@@ -70,7 +100,6 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
         query = query.gte('expense_date', filterStartDate);
       }
       if (filterEndDate) {
-        // Add 1 day to end date to include the whole day
         const endDatePlusOne = new Date(filterEndDate);
         endDatePlusOne.setDate(endDatePlusOne.getDate() + 1);
         query = query.lte('expense_date', endDatePlusOne.toISOString().split('T')[0]);
@@ -79,21 +108,24 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
         query = query.eq('category_id', filterCategoryId);
       }
 
-      // Apply sorting
-      // Note: Sorting by related table column ('categories.name') requires a view or function usually.
-      // We'll sort basic columns for now. Sorting by category name client-side might be an option
-      // for smaller datasets, but server-side is preferred. Let's sort by 'expense_date' or 'amount'.
-      let effectiveSortColumn = sortColumn;
-      if (sortColumn === 'categories' || sortColumn === 'description') {
-          // Fallback to date sort if trying to sort by text/relation directly in basic query
-          console.warn(`Sorting by ${sortColumn} might not be optimal with this query. Falling back to date.`);
-          effectiveSortColumn = 'expense_date';
+      // Apply search (using debounced term)
+      if (debouncedSearchTerm) {
+        query = query.ilike('description', `%${debouncedSearchTerm}%`);
       }
 
+      // Apply sorting
+      let effectiveSortColumn = sortColumn;
+      if (sortColumn === 'categories') {
+          console.warn(`Sorting by category name might not be optimal with this query. Falling back to date.`);
+          effectiveSortColumn = 'expense_date';
+      } else if (sortColumn === 'description') {
+          effectiveSortColumn = 'description';
+      }
+      // else it's 'expense_date' or 'amount' which are fine
+
       query = query.order(effectiveSortColumn, { ascending: sortDirection === 'asc' });
-      // Add secondary sort for consistency
       if (effectiveSortColumn !== 'created_at') {
-        query = query.order('created_at', { ascending: false });
+        query = query.order('created_at', { ascending: false }); // Secondary sort
       }
 
 
@@ -106,27 +138,45 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
     } catch (error: any) {
       console.error('Error fetching data:', error)
       setError(`Failed to load expenses: ${error.message}`)
-      setExpenses([]); // Clear expenses on error
+      setExpenses([]);
     } finally {
-      setLoading(false) // Ensure loading is false after fetch/refetch
+      // Always set loading false when fetch completes or fails
+      // This handles both initial load and subsequent updates.
+      setLoading(false)
     }
-  }, [filterStartDate, filterEndDate, filterCategoryId, sortColumn, sortDirection, categories.length]) // Add dependencies
+  }, [filterStartDate, filterEndDate, filterCategoryId, debouncedSearchTerm, sortColumn, sortDirection, categories.length]) // Dependencies for the fetch logic
 
-  // Initial fetch and refetch setup
+  // Initial fetch on mount
   useEffect(() => {
-    fetchExpensesAndCategories(true); // Pass true for initial load
+    fetchExpensesAndCategories(); // Trigger initial fetch
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Refetch when filters/sort/search change (debounced search)
+  useEffect(() => {
+    // Skip the very first render cycle (handled by mount useEffect)
+    if (!isInitialLoadRef.current) {
+      // Set loading true here to show loader during filter/sort/search updates
+      setLoading(true);
+      fetchExpensesAndCategories();
+    }
+  }, [debouncedSearchTerm, filterStartDate, filterEndDate, filterCategoryId, sortColumn, sortDirection, fetchExpensesAndCategories]); // Include fetchExpensesAndCategories
+
+  // Setup refetch function for parent component
+  useEffect(() => {
     if (setRefetch) {
-      setRefetch(() => () => fetchExpensesAndCategories(false)); // Pass false for subsequent refetches
+      // Provide a function that sets loading true before fetching
+      setRefetch(() => () => {
+          setLoading(true);
+          fetchExpensesAndCategories();
+      });
     }
-  }, [fetchExpensesAndCategories, setRefetch]) // fetchExpensesAndCategories is the key dependency here
-
-  // Trigger refetch when filters or sorting change
-  useEffect(() => {
-    // No need to call fetchExpensesAndCategories here directly,
-    // as it's already a dependency of the main useEffect hook.
-    // The main hook will re-run when filter/sort state changes because
-    // fetchExpensesAndCategories itself depends on them.
-  }, [filterStartDate, filterEndDate, filterCategoryId, sortColumn, sortDirection]);
+    // Cleanup refetch function on unmount
+    return () => {
+        if (setRefetch) {
+            setRefetch(() => () => {});
+        }
+    }
+  }, [setRefetch, fetchExpensesAndCategories]);
 
 
   const handleDelete = async (expenseId: string) => {
@@ -141,7 +191,7 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
         .delete()
         .eq('id', expenseId);
       if (deleteError) throw deleteError;
-      onExpenseUpdated(); // Use the callback to trigger refetch in App -> List & Charts
+      onExpenseUpdated(); // Trigger refetch via parent
     } catch (error: any) {
       console.error('Error deleting expense:', error);
       setError(`Failed to delete expense: ${error.message}`);
@@ -161,28 +211,28 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
   };
 
   const handleSaveExpense = () => {
-    onExpenseUpdated(); // Trigger refetch everywhere needed
-    // Modal closes itself after a delay on successful save
+    onExpenseUpdated(); // Trigger refetch via parent
   };
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
-      // Toggle direction if same column is clicked
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // Set new column and default to descending for date/amount, ascending for text
       setSortColumn(column);
       setSortDirection(['expense_date', 'amount'].includes(column) ? 'desc' : 'asc');
     }
+    // State change will trigger the useEffect hook for refetching
   };
 
-  const clearFilters = () => {
+  const clearFiltersAndSearch = () => {
     setFilterStartDate('');
     setFilterEndDate('');
     setFilterCategoryId('');
+    setSearchTerm(''); // Clear search term
     setSortColumn('expense_date'); // Reset sort
     setSortDirection('desc');
-    // The useEffect watching these state variables will trigger the refetch
+    searchInputRef.current?.focus(); // Focus search input after clearing
+    // State changes will trigger the useEffect hook for refetching
   };
 
   const renderSortIcon = (column: SortColumn) => {
@@ -197,9 +247,48 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
       <div className="p-4 bg-white rounded-lg shadow">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Expenses</h2>
 
-        {/* Filter and Sort Controls */}
-        <div className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
+        {/* Filter, Sort, and Search Controls */}
+        <div className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50 space-y-4">
+          {/* Row 1: Search and Clear */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+             <div className="relative flex-grow w-full">
+                <label htmlFor="search" className="sr-only">Search Descriptions</label>
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search size={16} className="text-gray-400" />
+                </div>
+                <input
+                    ref={searchInputRef}
+                    type="search"
+                    id="search"
+                    placeholder="Search descriptions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    disabled={loading} // Disable input while loading
+                />
+                {searchTerm && (
+                    <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        title="Clear search"
+                        disabled={loading} // Disable button while loading
+                    >
+                        <X size={16} />
+                    </button>
+                )}
+             </div>
+             <button
+                onClick={clearFiltersAndSearch}
+                disabled={loading} // Disable button while loading
+                className="w-full sm:w-auto px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 disabled:opacity-50 flex items-center justify-center gap-1 flex-shrink-0"
+                title="Clear all filters and search"
+              >
+                <FilterX size={16} /> Clear All
+              </button>
+          </div>
+
+          {/* Row 2: Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             {/* Date Range */}
             <div>
               <label htmlFor="filterStartDate" className="block text-sm font-medium text-gray-700">Start Date</label>
@@ -209,7 +298,7 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
                 value={filterStartDate}
                 onChange={(e) => setFilterStartDate(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                disabled={loading}
+                disabled={loading} // Disable input while loading
               />
             </div>
             <div>
@@ -219,9 +308,9 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
                 id="filterEndDate"
                 value={filterEndDate}
                 onChange={(e) => setFilterEndDate(e.target.value)}
-                min={filterStartDate} // Prevent end date before start date
+                min={filterStartDate || undefined}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                disabled={loading}
+                disabled={loading || !filterStartDate} // Also disable if start date isn't set
               />
             </div>
 
@@ -233,7 +322,7 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
                 value={filterCategoryId}
                 onChange={(e) => setFilterCategoryId(e.target.value)}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                disabled={loading || categories.length === 0}
+                disabled={loading || categories.length === 0} // Disable select while loading
               >
                 <option value="">All Categories</option>
                 {categories.map((category) => (
@@ -242,18 +331,6 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Clear Filters Button */}
-            <div className="mt-1"> {/* Aligns button better */}
-              <button
-                onClick={clearFilters}
-                disabled={loading}
-                className="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 disabled:opacity-50 flex items-center justify-center gap-1"
-                title="Clear all filters and sorting"
-              >
-                <FilterX size={16} /> Clear
-              </button>
             </div>
           </div>
         </div>
@@ -265,40 +342,39 @@ export default function ExpenseList({ setRefetch, onExpenseUpdated }: ExpenseLis
             </div>
         )}
 
-        {/* Loading State */}
+        {/* Loading State - Unified Loader */}
         {loading ? (
           <div className="flex items-center justify-center py-10 text-gray-500">
             <Loader2 className="animate-spin h-8 w-8 mr-3" />
             Loading expenses...
           </div>
         ) : expenses.length === 0 ? (
-          // Empty State
+          // Empty State (shown only when not loading)
           <div className="text-center py-10 px-4">
              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /> {/* Search icon */}
              </svg>
              <h3 className="mt-2 text-sm font-medium text-gray-900">No expenses found</h3>
              <p className="mt-1 text-sm text-gray-500">
-                {filterStartDate || filterEndDate || filterCategoryId
-                    ? "Try adjusting your filters or add a new expense."
+                {filterStartDate || filterEndDate || filterCategoryId || debouncedSearchTerm
+                    ? "Try adjusting your search or filters."
                     : "Get started by adding your first expense!"}
              </p>
-             {/* Optionally add a button to add expense or clear filters */}
-             {(filterStartDate || filterEndDate || filterCategoryId) && (
+             {(filterStartDate || filterEndDate || filterCategoryId || debouncedSearchTerm) && (
                 <div className="mt-6">
                     <button
                         type="button"
-                        onClick={clearFilters}
+                        onClick={clearFiltersAndSearch}
                         className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                     >
                         <FilterX size={16} className="-ml-1 mr-2 h-5 w-5" />
-                        Clear Filters
+                        Clear Filters & Search
                     </button>
                 </div>
              )}
           </div>
         ) : (
-          // Expense Table
+          // Expense Table (shown only when not loading and expenses exist)
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
