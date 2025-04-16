@@ -49,6 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow users full control over their own expenses
+DROP POLICY IF EXISTS "Users can manage their own expenses" ON public.expenses;
 CREATE POLICY "Users can manage their own expenses"
     ON expenses
     FOR ALL

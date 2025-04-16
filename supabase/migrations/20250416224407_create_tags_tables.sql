@@ -58,6 +58,7 @@ ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tags
 DROP POLICY IF EXISTS "Users can manage their own tags" ON public.tags;
+DROP POLICY IF EXISTS "Users can manage their own tags" ON public.tags;
 CREATE POLICY "Users can manage their own tags"
 ON public.tags
 FOR ALL
@@ -89,6 +90,7 @@ ALTER TABLE public.expense_tags ENABLE ROW LEVEL SECURITY;
 
 -- Allow users to see links for expenses they own
 DROP POLICY IF EXISTS "Users can view tags for their expenses" ON public.expense_tags;
+DROP POLICY IF EXISTS "Users can view tags for their expenses" ON public.tags;
 CREATE POLICY "Users can view tags for their expenses"
 ON public.expense_tags
 FOR SELECT
@@ -98,6 +100,7 @@ USING (
 );
 
 -- Allow users to link tags they own to expenses they own
+DROP POLICY IF EXISTS "Users can link their own tags to their own expenses" ON public.expense_tags;
 DROP POLICY IF EXISTS "Users can link their own tags to their own expenses" ON public.expense_tags;
 CREATE POLICY "Users can link their own tags to their own expenses"
 ON public.expense_tags
@@ -110,6 +113,7 @@ WITH CHECK (
 );
 
 -- Allow users to delete links for expenses they own
+DROP POLICY IF EXISTS "Users can delete tag links from their expenses" ON public.expense_tags;
 DROP POLICY IF EXISTS "Users can delete tag links from their expenses" ON public.expense_tags;
 CREATE POLICY "Users can delete tag links from their expenses"
 ON public.expense_tags

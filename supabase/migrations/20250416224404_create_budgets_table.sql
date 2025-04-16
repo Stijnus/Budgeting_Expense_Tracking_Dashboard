@@ -69,15 +69,23 @@ CREATE INDEX IF NOT EXISTS idx_budgets_user_id ON public.budgets(user_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_user_category_period ON public.budgets(user_id, category_id, start_date, end_date);
 
 -- Create the trigger function to automatically update updated_at
-CREATE TRIGGER handle_updated_at
-BEFORE UPDATE ON public.budgets
-FOR EACH ROW
-EXECUTE FUNCTION extensions.moddatetime (updated_at);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'handle_updated_at'
+  ) THEN
+    CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON public.budgets
+    FOR EACH ROW
+    EXECUTE FUNCTION extensions.moddatetime (updated_at);
+  END IF;
+END $$;
 
 -- Enable Row Level Security
 ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies
+DROP POLICY IF EXISTS "Users can manage their own budgets" ON public.budgets;
 CREATE POLICY "Users can manage their own budgets"
 ON public.budgets
 FOR ALL -- Applies to SELECT, INSERT, UPDATE, DELETE

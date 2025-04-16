@@ -61,10 +61,17 @@ CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON public.incomes(user_id, inco
 -- Create the trigger function to automatically update updated_at
 -- Re-use the same trigger function if it exists, ensure it's applied
 DROP TRIGGER IF EXISTS handle_updated_at ON public.incomes; -- Drop if exists from previous attempts
-CREATE TRIGGER handle_updated_at
-BEFORE UPDATE ON public.incomes
-FOR EACH ROW
-EXECUTE FUNCTION extensions.moddatetime (updated_at);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'handle_updated_at'
+  ) THEN
+    CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON public.incomes
+    FOR EACH ROW
+    EXECUTE FUNCTION extensions.moddatetime (updated_at);
+  END IF;
+END $$;
 
 -- Enable Row Level Security
 ALTER TABLE public.incomes ENABLE ROW LEVEL SECURITY;
@@ -73,6 +80,7 @@ ALTER TABLE public.incomes ENABLE ROW LEVEL SECURITY;
 -- Drop existing policy first if script is re-run for safety
 DROP POLICY IF EXISTS "Users can manage their own income" ON public.incomes;
 -- Create the policy
+DROP POLICY IF EXISTS "Users can manage their own income" ON public.incomes;
 CREATE POLICY "Users can manage their own income"
 ON public.incomes
 FOR ALL -- Applies to SELECT, INSERT, UPDATE, DELETE

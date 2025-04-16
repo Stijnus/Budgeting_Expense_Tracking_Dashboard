@@ -106,7 +106,8 @@
     DROP POLICY IF EXISTS "Users can delete their own expenses" ON public.expenses;
     DROP POLICY IF EXISTS "Users can manage own OR household expenses" ON public.expenses; -- Drop new policy if it exists
 
-    CREATE POLICY "Users can manage own OR household expenses"
+    DROP POLICY IF EXISTS "Users can manage own OR household expenses" ON public.expenses;
+CREATE POLICY "Users can manage own OR household expenses"
         ON public.expenses
         FOR ALL -- Covers SELECT, INSERT, UPDATE, DELETE
         TO authenticated
@@ -136,7 +137,8 @@
     DROP POLICY IF EXISTS "Users can delete their own income" ON public.incomes;
     DROP POLICY IF EXISTS "Users can manage own OR household incomes" ON public.incomes; -- Drop new policy if it exists
 
-    CREATE POLICY "Users can manage own OR household incomes"
+    DROP POLICY IF EXISTS "Users can manage own OR household incomes" ON public.incomes;
+CREATE POLICY "Users can manage own OR household incomes"
         ON public.incomes
         FOR ALL
         TO authenticated
@@ -164,7 +166,8 @@
     DROP POLICY IF EXISTS "Users can delete their own budgets" ON public.budgets;
     DROP POLICY IF EXISTS "Users can manage own OR household budgets" ON public.budgets; -- Drop new policy if it exists
 
-    CREATE POLICY "Users can manage own OR household budgets"
+    DROP POLICY IF EXISTS "Users can manage own OR household budgets" ON public.budgets;
+CREATE POLICY "Users can manage own OR household budgets"
         ON public.budgets
         FOR ALL
         TO authenticated

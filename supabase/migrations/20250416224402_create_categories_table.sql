@@ -35,6 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow users full control over their own categories
+DROP POLICY IF EXISTS "Users can manage their own categories" ON public.categories;
 CREATE POLICY "Users can manage their own categories"
   ON categories
   FOR ALL

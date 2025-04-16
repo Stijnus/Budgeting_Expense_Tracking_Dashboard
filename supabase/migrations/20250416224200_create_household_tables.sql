@@ -62,38 +62,52 @@
     DROP POLICY IF EXISTS "Owners can DELETE their households" ON public.households;
     DROP POLICY IF EXISTS "Members OR Owners can view households" ON public.households;
 
-    CREATE POLICY "Owners can INSERT their households"
+    DROP POLICY IF EXISTS "Owners can INSERT their households" ON public.households;
+CREATE POLICY "Owners can INSERT their households"
         ON public.households FOR INSERT TO authenticated WITH CHECK (auth.uid() = owner_id);
-    CREATE POLICY "Owners can UPDATE their households"
+    DROP POLICY IF EXISTS "Owners can UPDATE their households" ON public.households;
+CREATE POLICY "Owners can UPDATE their households"
         ON public.households FOR UPDATE TO authenticated USING (auth.uid() = owner_id) WITH CHECK (auth.uid() = owner_id);
-    CREATE POLICY "Owners can DELETE their households"
+    DROP POLICY IF EXISTS "Owners can DELETE their households" ON public.households;
+CREATE POLICY "Owners can DELETE their households"
         ON public.households FOR DELETE TO authenticated USING (auth.uid() = owner_id);
-    CREATE POLICY "Members can view households they belong to"
+    DROP POLICY IF EXISTS "Members can view households they belong to" ON public.households;
+CREATE POLICY "Members can view households they belong to"
         ON public.households FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.household_members hm WHERE hm.household_id = households.id AND hm.user_id = auth.uid()));
 
     -- RLS Policies for household_members table
     DROP POLICY IF EXISTS "Users can view their own membership" ON public.household_members;
-    CREATE POLICY "Users can view their own membership"
+    DROP POLICY IF EXISTS "Users can view their own membership" ON public.household_members;
+CREATE POLICY "Users can view their own membership"
         ON public.household_members FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
     DROP POLICY IF EXISTS "Owners can view members of their households" ON public.household_members;
-    CREATE POLICY "Owners can view members of their households"
+    DROP POLICY IF EXISTS "Owners can view members of their households" ON public.household_members;
+CREATE POLICY "Owners can view members of their households"
         ON public.household_members FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.households h WHERE h.id = household_members.household_id AND h.owner_id = auth.uid()));
 
     -- DEBUG: Simplify the INSERT policy check for household_members
     DROP POLICY IF EXISTS "Owners can add members to their households" ON public.household_members;
-    CREATE POLICY "Owners can add members to their households (DEBUG)"
+    DROP POLICY IF EXISTS "Owners can add members to their households" ON public.household_members;
+CREATE POLICY "Owners can add members to their households"
         ON public.household_members
         FOR INSERT
         TO authenticated
-        WITH CHECK (true); -- REMOVED check back to households table for debugging
+        WITH CHECK (
+          EXISTS (
+            SELECT 1 FROM public.households h
+            WHERE h.id = household_members.household_id AND h.owner_id = auth.uid()
+          )
+        );
 
     DROP POLICY IF EXISTS "Members can leave households (delete own membership)" ON public.household_members;
-    CREATE POLICY "Members can leave households (delete own membership)"
+    DROP POLICY IF EXISTS "Members can leave households (delete own membership)" ON public.household_members;
+CREATE POLICY "Members can leave households (delete own membership)"
         ON public.household_members FOR DELETE TO authenticated USING (auth.uid() = user_id AND role <> 'owner');
 
     DROP POLICY IF EXISTS "Owners can remove members from their households" ON public.household_members;
-    CREATE POLICY "Owners can remove members from their households"
+    DROP POLICY IF EXISTS "Owners can remove members from their households" ON public.household_members;
+CREATE POLICY "Owners can remove members from their households"
         ON public.household_members FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM public.households h WHERE h.id = household_members.household_id AND h.owner_id = auth.uid()) AND household_members.user_id <> auth.uid());
 
     -- Function to automatically update 'updated_at' timestamp
