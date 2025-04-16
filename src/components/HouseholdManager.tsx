@@ -147,6 +147,7 @@ export default function HouseholdManager() {
             if (memberError) {
                 console.error("HouseholdManager: Error inserting owner member:", memberError); // Debug log
                 console.warn("HouseholdManager: Failed to add owner member, attempting to delete household...");
+                // Attempt to clean up the created household if member insert fails
                 await supabase.from('households').delete().eq('id', newHousehold.id);
                 throw memberError;
             }
@@ -154,8 +155,11 @@ export default function HouseholdManager() {
             setNewHouseholdName('');
             fetchHouseholds(false); // Refetch without main loader
         } catch (err: any) {
-            console.error("Error creating household:", err);
-            setFormError(`Failed to create household: ${err.message}`);
+            // --- MODIFICATION START ---
+            console.error("Error creating household (full error object):", err); // Log the full error object
+            const errorMessage = err?.message || 'An unknown error occurred'; // Provide a default message if err.message is missing
+            setFormError(`Failed to create household: ${errorMessage}`);
+            // --- MODIFICATION END ---
         } finally {
             setIsCreating(false);
         }
@@ -166,11 +170,16 @@ export default function HouseholdManager() {
         if (!window.confirm('Are you sure? This deletes the household and removes all members.')) return;
         setLoading(true); setError(null);
         try {
+            // Note: RLS policies should handle cascading deletes or you might need to delete members first
+            // depending on your foreign key setup. Assuming cascade or appropriate policies.
             const { error } = await supabase.from('households').delete().eq('id', householdId);
             if (error) throw error;
             fetchHouseholds(false); // Refetch list without main loader
         } catch (err: any) {
-            setError(`Failed to delete household: ${err.message}`); setLoading(false);
+            console.error("Error deleting household:", err);
+            setError(`Failed to delete household: ${err.message}`);
+        } finally {
+            setLoading(false); // Ensure loading is set to false in finally
         }
     };
 
@@ -182,7 +191,12 @@ export default function HouseholdManager() {
             const { error } = await supabase.from('household_members').delete().eq('household_id', householdId).eq('user_id', userId);
             if (error) throw error;
             fetchHouseholds(false);
-        } catch (err: any) { setError(`Failed to leave household: ${err.message}`); setLoading(false); }
+        } catch (err: any) {
+            console.error("Error leaving household:", err);
+            setError(`Failed to leave household: ${err.message}`);
+        } finally {
+             setLoading(false); // Ensure loading is set to false in finally
+        }
     };
 
     // --- Member Management ---

@@ -349,6 +349,13 @@
             }
             Returns: string // uuid is represented as string here
           }
+          is_household_member: { // ADDED
+             Args: {
+               hid: string // uuid
+               uid: string // uuid
+             }
+             Returns: boolean
+           }
         }
         Enums: {
           [_ in never]: never
