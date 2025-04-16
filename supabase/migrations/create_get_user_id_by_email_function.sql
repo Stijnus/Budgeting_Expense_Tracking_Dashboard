@@ -1,4 +1,3 @@
-```sql
 /*
   # Create get_user_id_by_email Function
 
@@ -38,4 +37,3 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_user_id_by_email(text) TO authenticated;
 
 COMMENT ON FUNCTION public.get_user_id_by_email(text) IS 'Retrieves the user ID for a given email address (case-insensitive). SECURITY DEFINER allows lookup in auth.users.';
-    ```

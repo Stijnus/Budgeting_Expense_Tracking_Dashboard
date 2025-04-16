@@ -1,4 +1,4 @@
-// Manually added based on migrations - ideally use `supabase gen types typescript`
+// Manually updated based on migrations - ideally use `supabase gen types typescript`
 
     export type Json =
       | string
@@ -41,7 +41,7 @@
               },
             ]
           }
-          // Existing expenses table
+          // Existing expenses table - UPDATED
           expenses: {
             Row: {
               amount: number
@@ -51,7 +51,7 @@
               expense_date: string
               id: string
               user_id: string
-              // household_id: string | null // Will be added later
+              household_id: string | null // ADDED
             }
             Insert: {
               amount: number
@@ -61,7 +61,7 @@
               expense_date: string
               id?: string
               user_id: string
-              // household_id?: string | null // Will be added later
+              household_id?: string | null // ADDED
             }
             Update: {
               amount?: number
@@ -71,7 +71,7 @@
               expense_date?: string
               id?: string
               user_id?: string
-              // household_id?: string | null // Will be added later
+              household_id?: string | null // ADDED
             }
             Relationships: [
               {
@@ -88,16 +88,16 @@
                 referencedRelation: "users"
                 referencedColumns: ["id"]
               },
-              // { // Will be added later
-              //   foreignKeyName: "expenses_household_id_fkey"
-              //   columns: ["household_id"]
-              //   isOneToOne: false
-              //   referencedRelation: "households"
-              //   referencedColumns: ["id"]
-              // },
+              { // ADDED
+                foreignKeyName: "expenses_household_id_fkey"
+                columns: ["household_id"]
+                isOneToOne: false
+                referencedRelation: "households"
+                referencedColumns: ["id"]
+              },
             ]
           }
-          // Existing budgets table
+          // Existing budgets table - UPDATED
           budgets: {
             Row: {
               id: string
@@ -108,7 +108,7 @@
               end_date: string
               created_at: string
               updated_at: string
-              // household_id: string | null // Will be added later
+              household_id: string | null // ADDED
             }
             Insert: {
               id?: string
@@ -119,7 +119,7 @@
               end_date: string
               created_at?: string
               updated_at?: string
-              // household_id?: string | null // Will be added later
+              household_id?: string | null // ADDED
             }
             Update: {
               id?: string
@@ -130,7 +130,7 @@
               end_date?: string
               created_at?: string
               updated_at?: string
-              // household_id?: string | null // Will be added later
+              household_id?: string | null // ADDED
             }
             Relationships: [
               {
@@ -147,16 +147,16 @@
                 referencedRelation: "categories"
                 referencedColumns: ["id"]
               },
-              // { // Will be added later
-              //   foreignKeyName: "budgets_household_id_fkey"
-              //   columns: ["household_id"]
-              //   isOneToOne: false
-              //   referencedRelation: "households"
-              //   referencedColumns: ["id"]
-              // },
+              { // ADDED
+                foreignKeyName: "budgets_household_id_fkey"
+                columns: ["household_id"]
+                isOneToOne: false
+                referencedRelation: "households"
+                referencedColumns: ["id"]
+              },
             ]
           }
-          // Existing incomes table
+          // Existing incomes table - UPDATED
           incomes: {
               Row: {
                 id: string
@@ -166,7 +166,7 @@
                 income_date: string
                 created_at: string
                 updated_at: string
-                // household_id: string | null // Will be added later
+                household_id: string | null // ADDED
               }
               Insert: {
                 id?: string
@@ -176,7 +176,7 @@
                 income_date: string
                 created_at?: string
                 updated_at?: string
-                // household_id?: string | null // Will be added later
+                household_id?: string | null // ADDED
               }
               Update: {
                 id?: string
@@ -186,7 +186,7 @@
                 income_date?: string
                 created_at?: string
                 updated_at?: string
-                // household_id?: string | null // Will be added later
+                household_id?: string | null // ADDED
               }
               Relationships: [
                 {
@@ -195,14 +195,14 @@
                   isOneToOne: false
                   referencedRelation: "users"
                   referencedColumns: ["id"]
+                },
+                { // ADDED
+                  foreignKeyName: "incomes_household_id_fkey"
+                  columns: ["household_id"]
+                  isOneToOne: false
+                  referencedRelation: "households"
+                  referencedColumns: ["id"]
                 }
-                // { // Will be added later
-                //   foreignKeyName: "incomes_household_id_fkey"
-                //   columns: ["household_id"]
-                //   isOneToOne: false
-                //   referencedRelation: "households"
-                //   referencedColumns: ["id"]
-                // }
               ]
             }
           // Existing tags table
@@ -269,7 +269,7 @@
               }
             ]
           }
-          // --- NEW Household Tables ---
+          // Existing Household Tables
           households: {
             Row: {
               id: string
@@ -338,13 +338,17 @@
               }
             ]
           }
-          // --- END NEW Household Tables ---
         }
         Views: {
           [_ in never]: never
         }
         Functions: {
-          [_ in never]: never
+          get_user_id_by_email: { // ADDED
+            Args: {
+              user_email: string
+            }
+            Returns: string // uuid is represented as string here
+          }
         }
         Enums: {
           [_ in never]: never
