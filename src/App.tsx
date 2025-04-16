@@ -10,7 +10,8 @@ import BudgetManager from './components/BudgetManager'
 import IncomeForm from './components/IncomeForm'
 import IncomeList from './components/IncomeList'
 import MonthlyReport from './components/MonthlyReport'
-import UserProfile from './components/UserProfile' // Import UserProfile
+import UserProfile from './components/UserProfile'
+import HouseholdManager from './components/HouseholdManager' // Import HouseholdManager
 import type { Session } from '@supabase/supabase-js'
 import { Loader2 } from 'lucide-react';
 
@@ -99,11 +100,12 @@ function App() {
           {/* Main Grid: Adjust columns */}
           <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            {/* Column 1: Categories, Budgets, Profile */}
+            {/* Column 1: Categories, Budgets, Profile, Households */}
             <div className="lg:col-span-1 space-y-8">
               <Categories />
               <BudgetManager />
-              <UserProfile /> {/* Add User Profile Here */}
+              <HouseholdManager /> {/* Add Household Manager Here */}
+              <UserProfile />
             </div>
 
             {/* Column 2: Income & Expenses Forms/Lists */}
