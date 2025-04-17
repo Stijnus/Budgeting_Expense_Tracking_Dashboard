@@ -1,14 +1,33 @@
 # 💸 Budget Tracker
 
-A modern web application built with **React**, **TypeScript**, **Vite**, **Tailwind CSS**, and **Supabase** to help users track and manage their personal expenses with ease.
+A modern web application built with **React**, **TypeScript**, **Vite**, **Tailwind CSS**, and **Supabase** to help users track and manage their personal and household expenses with ease.
 
 ## ✨ Features
 
 - 🔐 User authentication (Sign Up / Sign In) powered by Supabase Auth
-- 🗂️ Create, view, and delete spending **categories**
-- 💸 Add, view, and delete **expenses**, with category association
-- 👤 Expenses are scoped per authenticated user
+- 👤 User profile management (Password Change, **Account Deletion**)
+- 🗂️ Create, view, edit, and delete spending **categories**
+- 💸 Add, view, edit, and delete **expenses**, with category and tag association
+- 💰 Add, view, and delete **income** records
+- 🎯 Create, view, edit, and delete **budgets** (overall or per category) with progress tracking
+- 🏷️ Tag expenses with custom tags (create, view, link/unlink)
+- 📊 Data visualization:
+    - Pie chart for expenses by category
+    - Line chart for income vs. expense trend over time
+    - Monthly summary report (income, expenses, net, category breakdown)
+- 🏡 **Household Management**:
+    - Create households
+    - Invite members via email lookup
+    - View household members and their roles
+    - Roles: Owner, Admin, Member
+    - Owners/Admins can remove members
+    - Owners/Admins can promote members to Admin or demote Admins to Member
+    - Leave households (non-owners)
+    - Delete households (owners only)
+- ⚙️ **Settings Page**: Centralized location for User Profile and Household Management.
+- 🧭 **Application Layout**: Consistent navigation using Navbar, Sidebar, and Footer.
 - 🎨 Clean, responsive UI styled with Tailwind CSS
+- 📥 Export all personal expenses to CSV
 
 ## 📁 Project Structure
 
@@ -16,24 +35,31 @@ A modern web application built with **React**, **TypeScript**, **Vite**, **Tailw
 /
 ├── public/
 ├── src/
-│   ├── components/         # UI Components (Auth, Categories, ExpenseForm, ExpenseList)
-│   ├── lib/                # Supabase client, types, and utilities
+│   ├── components/         # UI Components (Auth, Forms, Lists, Charts, Layout, etc.)
+│   │   └── layout/         # Navbar, Sidebar, Footer, AppLayout
+│   ├── hooks/              # Custom React Hooks (data fetching, mutations - currently basic)
+│   ├── lib/                # Supabase client, types, utilities
 │   │   ├── supabaseClient.ts
 │   │   └── database.types.ts
-│   ├── App.tsx             # Main app component
+│   ├── pages/              # Page components (e.g., SettingsPage)
+│   ├── App.tsx             # Main app component, routing logic
 │   ├── index.css           # Tailwind base styles
 │   ├── main.tsx            # Entry point
 │   └── vite-env.d.ts       # Vite env types
 ├── supabase/
-│   └── migrations/         # SQL migration scripts
-├── .env                    # Supabase environment variables (not committed)
-├── .eslintrc.cjs           # ESLint configuration
+│   ├── migrations/         # SQL migration scripts (schema, RLS policies)
+│   └── functions/          # Edge Functions (e.g., delete-user)
+│       ├── _shared/        # Shared code for functions (e.g., cors)
+│       └── delete-user/
+├── .env                    # Supabase environment variables (MUST BE CREATED)
+├── eslint.config.js        # ESLint configuration
 ├── index.html              # HTML entry point
 ├── package.json            # Project scripts and dependencies
 ├── postcss.config.js       # PostCSS config
 ├── tailwind.config.js      # Tailwind CSS config
-├── tsconfig.json           # TypeScript config
-├── tsconfig.node.json      # Node-specific TS config
+├── tsconfig.json           # TypeScript config (root)
+├── tsconfig.app.json       # TypeScript config (app-specific)
+├── tsconfig.node.json      # TypeScript config (Node env specific)
 └── vite.config.ts          # Vite configuration
 ```
 
@@ -43,113 +69,102 @@ Enhance navigation and usability with a consistent layout structure:
 
 ### 🧭 Navbar
 
-- Logo / App title (clickable)
-- User info (e.g., name or email)
+- Logo / App title (clickable, navigates to Dashboard)
+- User info (email)
 - Logout button
-- Optional navigation links (Dashboard, Profile, Reports, etc.)
+- Mobile sidebar toggle
 
-**Component:** `components/layout/Navbar.tsx`
-
-> Use Tailwind for sticky positioning and responsive flex layout.
-
----
+**Component:** `src/components/layout/Navbar.tsx`
 
 ### 📂 Sidebar
 
-- Navigation to major sections: Dashboard, Categories, Expenses, Reports, Settings, Household
-- Active route highlighting
-- Collapsible for mobile
-- Use icon libraries like [Lucide](https://lucide.dev/) or Heroicons
+- Navigation to major sections: Dashboard, Settings
+- Active route highlighting (basic implementation)
+- Collapsible for mobile view
 
-**Component:** `components/layout/Sidebar.tsx`
-
-> Use `react-router` or `@tanstack/router` for navigation.
-
----
+**Component:** `src/components/layout/Sidebar.tsx`
 
 ### 📎 Footer
 
-- App version or build info
-- Copyright
-- Optional links to privacy policy or help
+- Copyright information
 
-**Component:** `components/layout/Footer.tsx`
+**Component:** `src/components/layout/Footer.tsx`
 
-> Implement sticky footer using flex layout and `flex-grow`.
+### 📐 Layout Wrapper
 
----
+The `src/components/layout/AppLayout.tsx` component wraps the main application content, providing the consistent Navbar, Sidebar, and Footer structure.
 
-### 📐 Layout Wrapper Example
+## 🏡 Household Management Details
 
-```tsx
-// components/layout/AppLayout.tsx
+- **Roles**:
+    - `owner`: Created the household, has full control, cannot be removed or demoted. Can delete the household.
+    - `admin`: Can manage members (add, remove, promote/demote other non-owner members). Can be demoted by the owner.
+    - `member`: Can view household information (details pending full implementation). Cannot manage other members.
+- **Data Scope**: Currently, expenses, incomes, budgets, etc., are primarily personal. Household-scoped data sharing is a potential future feature.
+- **Implementation**: Managed within the `SettingsPage` via the `HouseholdManager` component. Uses RLS policies extensively for access control.
 
-return (
-  <div className="flex flex-col min-h-screen">
-    <Navbar />
-    <div className="flex flex-1">
-      <Sidebar />
-      <main className="flex-1 p-4">{children}</main>
-    </div>
-    <Footer />
-  </div>
-);
-```
+## 🗑️ Account Deletion
+
+- Accessible via the User Profile section on the Settings page.
+- Requires email confirmation for safety.
+- Uses a Supabase Edge Function (`delete-user`) with admin privileges to perform the deletion.
+- Relies on `ON DELETE CASCADE` database constraints to remove associated user data (expenses, categories, budgets, incomes, tags, household memberships, owned households).
 
 ## 🛠️ Setup and Running Locally
 
-1. **Clone the repository:**
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd <project-directory>
+    ```
 
-   ```bash
-   git clone <repository-url>
-   cd <project-directory>
-   ```
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+    *(Or `pnpm install` if using pnpm)*
 
-2. **Install dependencies:**
+3.  **Create your Supabase project:**
+    - Go to [supabase.com](https://supabase.com/) and create a new project.
+    - In the Supabase dashboard SQL Editor, run the SQL scripts from `/supabase/migrations` one by one to set up tables, RLS policies, and functions. Pay attention to the order if necessary, although filenames don't enforce it.
+    - **Disable Email Confirmation**: Go to `Authentication -> Providers -> Email` and toggle off "Confirm email".
+    - **Set up Edge Function**:
+        - Deploy the `delete-user` function using the Supabase CLI (outside the scope of this README) or manually create it in the dashboard.
+        - Go to `Edge Functions`, select the `delete-user` function.
+        - Go to `Settings` for the function and add a secret named `SUPABASE_SERVICE_ROLE_KEY`. Paste your project's Service Role Key (found in `Project Settings -> API -> Project API keys`) as the value.
 
-   ```bash
-   npm install
-   ```
+4.  **Set environment variables:**
+    Create a `.env` file in the project root with your Supabase credentials:
+    ```env
+    VITE_SUPABASE_URL=your-supabase-project-url
+    VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+    ```
+    *(Replace with your actual URL and Anon key from `Project Settings -> API`)*
 
-3. **Create your Supabase project:**
+5.  **(Optional) Generate Supabase Types:**
+    If you make schema changes, regenerate TypeScript types:
+    ```bash
+    # Make sure SUPABASE_PROJECT_ID is set as an environment variable or replace $SUPABASE_PROJECT_ID with your actual project ID
+    npm run types:generate
+    ```
 
-   - Go to [supabase.com](https://supabase.com/) and create a new project
-   - Run SQL scripts from `/supabase/migrations` to set up tables and policies
-
-4. **Set environment variables:**
-   Create a `.env` file with:
-
-   ```env
-   VITE_SUPABASE_URL=your-supabase-url
-   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
-
-5. **(Optional) Generate Supabase Types:**
-
-   ```bash
-   npm run types:generate
-   ```
-
-6. **Run the app locally:**
-   ```bash
-   npm run dev
-   ```
+6.  **Run the app locally:**
+    ```bash
+    npm run dev
+    ```
 
 ---
 
 ## 🌱 Potential Feature Improvements
 
-- ✏️ Edit existing expenses and categories
-- 📊 Data visualization with charts (pie/bar) via `recharts`
-- 🎯 Budget goals by category or timeframe
-- 📈 Monthly/yearly spending reports
-- 🔍 Filter and sort expenses by date, amount, or category
-- 🔎 Search functionality for expenses or categories
-- 👤 User profile management (change password, etc.)
-- 📁 Export data to CSV
-- 🖼️ UI/UX improvements (validation, animations, feedback)
-- 📱 Full mobile responsiveness
-- 🔁 Recurring expenses
-- 🏷️ Expense tagging and label system
-- 🏡 Household budgeting: Invite family members to a shared budget
-- 🧭 App layout improvements with sidebar, navbar, and footer
+- **Household Data Sharing**: Allow expenses/budgets/incomes to be explicitly linked to a household and viewable/editable by members based on permissions.
+- **Invitations**: Implement a proper invitation system (e.g., email links with tokens) instead of direct email lookup for adding members.
+- **Transfer Ownership**: Allow household owners to transfer ownership to another member.
+- **Advanced Reporting**: More filtering/grouping options, custom date ranges, chart customization.
+- **Recurring Transactions**: Set up recurring expenses and incomes.
+- **UI/UX Enhancements**: Improved form validation, loading states, animations, accessibility.
+- **Mobile Responsiveness**: Further refinement for various screen sizes.
+- **Testing**: Implement unit and integration tests.
+- **Currency/Date Formatting**: User preferences for display formats.
+- **Notifications**: In-app or email notifications (e.g., budget alerts, new members).
+- **Two-Factor Authentication (2FA)**: Enhance security via Supabase Auth settings.
