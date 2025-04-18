@@ -72,36 +72,31 @@ export default function UserProfile() {
         setDeleteError(null);
 
         try {
-            console.log("Invoking delete-user function...");
-            // IMPORTANT: Ensure the Edge Function name matches exactly
-            const { error: functionError } = await supabase.functions.invoke('delete-user', {
-                // Body is not strictly needed if function gets user from JWT, but helps clarity
-                // method: 'POST', // Method is POST by default
-            });
+            // 1. First delete all user data from related tables
+            const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+            if (getUserError || !user?.id) throw new Error('Could not authenticate user');
+            
+            const { error: deleteDataError } = await supabase
+                .from('household_members')
+                .delete()
+                .eq('user_id', user.id);
 
-            if (functionError) {
-                console.error("Edge function invocation error:", functionError);
-                // Try to parse a more specific error message if available
-                let message = functionError.message;
-                try {
-                    const contextMessage = (functionError as any).context?.message;
-                    if (contextMessage) message = contextMessage;
-                } catch (_) {}
-                 throw new Error(message || "Unknown error calling delete function.");
-            }
+            if (deleteDataError) throw deleteDataError;
 
-            console.log("delete-user function invoked successfully. Logging out.");
-            // If function succeeds, Supabase handles user deletion. Log out client-side.
+            // 2. Then delete the auth user
+            const { error: deleteUserError } = await supabase.rpc('delete_user', {});
+
+            if (deleteUserError) throw deleteUserError;
+
+            // 3. Finally sign out
             await supabase.auth.signOut();
-            // App.tsx's onAuthStateChange listener will handle redirecting to Auth page
-            // No need to close modal explicitly, as the component will unmount/rerender
-
+            
         } catch (err: any) {
             console.error('Error deleting account:', err);
             setDeleteError(`Failed to delete account: ${err.message}`);
-            setDeleteLoading(false); // Stop loading only on error
+        } finally {
+            setDeleteLoading(false);
         }
-        // No finally block to set loading false, as success means logout/unmount
     };
 
     // --- Render ---
