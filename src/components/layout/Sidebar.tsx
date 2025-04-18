@@ -1,32 +1,37 @@
-import React from 'react';
-import { LayoutDashboard, Settings, BarChart3, ListChecks, CreditCard, Home } from 'lucide-react'; // Example icons
+import React from "react";
+import { LayoutDashboard, Settings, LucideIcon } from "lucide-react"; // Example icons
 
 interface SidebarProps {
-  currentView: 'dashboard' | 'settings';
-  onNavigate: (view: 'dashboard' | 'settings') => void;
+  currentView: "dashboard" | "settings";
+  onNavigate: (view: "dashboard" | "settings") => void;
   isOpen?: boolean; // For mobile state
   onClose?: () => void; // For mobile overlay click
 }
 
 // Define navigation items
-const navigationItems = [
-  { name: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
-  { name: 'Categories', view: 'dashboard', icon: ListChecks }, // Points to dashboard for now
-  { name: 'Expenses', view: 'dashboard', icon: CreditCard }, // Points to dashboard for now
-  { name: 'Reports', view: 'dashboard', icon: BarChart3 }, // Points to dashboard for now
-  { name: 'Households', view: 'settings', icon: Home }, // Points to settings for now
-  { name: 'Settings', view: 'settings', icon: Settings },
+const navigationItems: Array<{
+  name: string;
+  view: "dashboard" | "settings";
+  icon: LucideIcon;
+}> = [
+  { name: "Dashboard", view: "dashboard", icon: LayoutDashboard },
+  { name: "Settings", view: "settings", icon: Settings },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpen = true, onClose }) => {
-
+const Sidebar: React.FC<SidebarProps> = ({
+  currentView,
+  onNavigate,
+  isOpen = true,
+  onClose,
+}) => {
   // Basic navigation handler - in a real app, use react-router or similar
-  const handleNavigation = (view: 'dashboard' | 'settings') => {
+  const handleNavigation = (view: "dashboard" | "settings") => {
     onNavigate(view);
     if (onClose) onClose(); // Close sidebar on mobile after navigation
   };
 
-  const baseClasses = "fixed inset-y-0 left-0 z-40 w-64 bg-gray-800 text-white transition-transform duration-300 ease-in-out transform";
+  const baseClasses =
+    "fixed inset-y-0 left-0 z-40 w-64 bg-gray-800 text-white transition-transform duration-300 ease-in-out transform";
   const openClasses = "translate-x-0";
   const closedClasses = "-translate-x-full";
   const desktopClasses = "lg:translate-x-0 lg:static lg:inset-0"; // Always visible on desktop
@@ -43,7 +48,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpen = tru
       )}
 
       {/* Sidebar */}
-      <aside className={`${baseClasses} ${isOpen ? openClasses : closedClasses} ${desktopClasses}`}>
+      <aside
+        className={`${baseClasses} ${
+          isOpen ? openClasses : closedClasses
+        } ${desktopClasses}`}
+      >
         <div className="flex flex-col h-full">
           {/* Sidebar Header (optional) */}
           <div className="h-16 flex items-center justify-center flex-shrink-0 border-b border-gray-700">
@@ -63,8 +72,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpen = tru
                   onClick={() => handleNavigation(item.view)}
                   className={`w-full flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors duration-150 ${
                     isActive
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      ? "bg-gray-900 text-white"
+                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
                   }`}
                 >
                   <item.icon size={18} className="mr-3 flex-shrink-0" />
@@ -76,7 +85,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpen = tru
 
           {/* Sidebar Footer (optional) */}
           <div className="p-4 border-t border-gray-700 flex-shrink-0">
-            <p className="text-xs text-gray-400 text-center">&copy; 2024 Budget App</p>
+            <p className="text-xs text-gray-400 text-center">
+              &copy; 2024 Budget App
+            </p>
           </div>
         </div>
       </aside>
