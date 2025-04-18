@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Structure Guide
+
+This is a Budgeting and Expense Tracking Dashboard built with React, TypeScript, and Supabase.
+
+## Project Organization
+
+The project follows a modular architecture with clear separation of concerns:

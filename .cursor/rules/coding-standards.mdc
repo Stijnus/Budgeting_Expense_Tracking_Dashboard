@@ -1,0 +1,52 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Coding Standards and Best Practices
+
+## TypeScript Guidelines
+
+1. Always use TypeScript's strict mode
+2. Define interfaces and types in `src/types/`
+3. Use proper type annotations for all variables, parameters, and return types
+4. Avoid using `any` type - use proper type definitions or `unknown` if necessary
+
+## Component Guidelines
+
+1. Use functional components with hooks
+2. Keep components focused and single-responsibility
+3. Extract reusable logic into custom hooks in `src/hooks/`
+4. Use proper prop typing for all components
+5. Implement error boundaries where appropriate
+
+## State Management
+
+1. Use React Context for global state management
+2. Keep context providers in `src/contexts/`
+3. Use local state for component-specific data
+4. Implement proper loading and error states
+
+## Database Guidelines
+
+1. All database changes should be done through migrations
+2. Follow naming conventions for tables and columns:
+   - Use snake_case for table and column names
+   - Use plural for table names (e.g., `users`, `expenses`)
+3. Include proper foreign key constraints
+4. Add appropriate indexes for frequently queried columns
+
+## Code Style
+
+1. Use ESLint and Prettier for consistent code formatting
+2. Follow the configured ESLint rules in [eslint.config.js](mdc:eslint.config.js)
+3. Write meaningful commit messages
+4. Document complex logic with clear comments
+5. Use meaningful variable and function names
+
+## Performance Considerations
+
+1. Implement proper memoization using `useMemo` and `useCallback`
+2. Optimize database queries in Edge Functions
+3. Use proper loading states and skeleton loaders
+4. Implement proper error handling and user feedback

@@ -1,0 +1,49 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Supabase Backend Configuration
+
+## Edge Functions
+
+Edge Functions are located in [supabase/functions/](mdc:supabase/functions) and follow these guidelines:
+
+1. Shared code should be placed in [_shared/](mdc:supabase/functions/_shared)
+2. Each function should have its own directory
+3. Functions should be typed using TypeScript
+4. Implement proper error handling and logging
+5. Use environment variables for sensitive data
+
+## Database Migrations
+
+Database migrations are managed in [supabase/migrations/](mdc:supabase/migrations):
+
+1. Each migration should be atomic and reversible
+2. Follow the naming pattern: `YYYYMMDDHHMMSS_descriptive_name.sql`
+3. Include both `up` and `down` migrations
+4. Document complex migrations with comments
+
+## Security Guidelines
+
+1. Implement Row Level Security (RLS) policies
+2. Use proper role-based access control
+3. Never expose sensitive data in Edge Functions
+4. Validate all user input
+5. Use prepared statements for SQL queries
+
+## Environment Configuration
+
+1. Store configuration in `.env` file (not committed to version control)
+2. Required environment variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+3. Use type-safe environment variables
+
+## Development Workflow
+
+1. Test Edge Functions locally using Supabase CLI
+2. Run migrations in order
+3. Backup database before major changes
+4. Use feature branches for development
