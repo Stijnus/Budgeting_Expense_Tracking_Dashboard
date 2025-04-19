@@ -39,25 +39,11 @@ CREATE POLICY "Users can view own profile"
     FOR SELECT
     USING (auth.uid() = id);
 
--- Users can update their own profile (except role)
+-- Users can update their own profile
 CREATE POLICY "Users can update own profile"
     ON user_profiles
     FOR UPDATE
-    USING (auth.uid() = id)
-    WITH CHECK (
-        auth.uid() = id
-        AND (
-            -- Regular users cannot modify their role
-            (OLD.role = NEW.role)
-            OR
-            -- Superusers can modify roles
-            EXISTS (
-                SELECT 1 FROM user_profiles
-                WHERE id = auth.uid()
-                AND role = 'superuser'
-            )
-        )
-    );
+    USING (auth.uid() = id);
 
 -- Superusers can view all profiles
 CREATE POLICY "Superusers can view all profiles"

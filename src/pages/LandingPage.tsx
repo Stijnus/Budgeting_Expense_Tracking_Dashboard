@@ -1,99 +1,144 @@
-import React, { useState } from "react";
-import { supabase } from "../api/supabase/client";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Mail,
-  Lock,
-  ChevronRight,
   DollarSign,
   Clock,
   Bell,
-  Wallet,
   User,
+  Mail,
+  Lock,
   Phone,
+  ChevronRight,
 } from "lucide-react";
-// User types are handled directly in the insert operation
+import { useAuth } from "../state/auth/useAuth";
 
-export default function Auth() {
+interface LandingPageProps {
+  initialMode?: "signin" | "signup";
+}
+
+export default function LandingPage({ initialMode }: LandingPageProps) {
+  const navigate = useNavigate();
+  const [isSignUp, setIsSignUp] = useState(initialMode === "signup");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const { signIn, signUp, resetPassword, clearSession } = useAuth();
+
+  // Update isSignUp when initialMode changes
+  useEffect(() => {
+    if (initialMode === "signin") {
+      setIsSignUp(false);
+    } else if (initialMode === "signup") {
+      setIsSignUp(true);
+    }
+  }, [initialMode]);
+
+  // Redirect to dashboard if user is already authenticated
+  const { user, loading: authLoading } = useAuth();
+  useEffect(() => {
+    if (user && !authLoading) {
+      console.log("User already authenticated, redirecting to dashboard");
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
+
+  // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [isSignUp, setIsSignUp] = useState(true); // Toggle between Sign Up and Sign In
-  const [message, setMessage] = useState<string | null>(null); // For user feedback
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setMessage(null); // Clear previous messages
+    setMessage(null);
 
-    const credentials = { email, password };
+    // Set a timeout to prevent the login from getting stuck
+    const loginTimeout = setTimeout(() => {
+      console.log("Login timeout reached, resetting loading state");
+      setLoading(false);
+      setMessage("Login is taking longer than expected. Please try again.");
+    }, 15000); // 15 seconds timeout
 
     try {
-      let error = null;
       if (isSignUp) {
-        // First, sign up the user
-        const { data: authData, error: signUpError } =
-          await supabase.auth.signUp(credentials);
-        error = signUpError;
+        const { error } = await signUp(email, password, {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+          // Store phone number in metadata or user profile table instead
+        });
 
-        if (!error && authData.user) {
-          // Then create their profile
-          const { error: profileError } = await supabase
-            .from("user_profiles")
-            .insert({
-              id: authData.user.id,
-              first_name: firstName,
-              last_name: lastName,
-              phone_number: phoneNumber || null,
-              role: "user" as const, // Default role
-              email: email,
-            });
+        if (error) throw error;
+        setMessage(
+          "Registration successful! Please check your email for confirmation."
+        );
+      } else {
+        console.log("Starting login process...");
+        // Clear any existing session before attempting to sign in
+        // This helps prevent issues with stale sessions
+        console.log("Clearing existing session...");
+        clearSession();
 
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
-            error = profileError;
-          }
+        console.log("Attempting to sign in...");
+        const { error } = await signIn(email, password);
+        if (error) {
+          console.error("Sign in error:", error);
+          throw error;
         }
 
-        if (!error) setMessage("Check your email for the confirmation link!");
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword(
-          credentials
-        );
-        error = signInError;
-        // No message needed on successful sign-in, App.tsx will handle redirect/UI change
-      }
+        // Clear the timeout since login was successful
+        clearTimeout(loginTimeout);
 
-      if (error) throw error;
-    } catch (error: unknown) {
+        // Successfully logged in, wait a bit for auth state to update
+        console.log("Sign in successful, waiting for auth state to update...");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log("Navigating to dashboard...");
+        navigate("/dashboard");
+      }
+    } catch (error) {
       console.error("Authentication error:", error);
-      setMessage(
-        `Error: ${
-          error instanceof Error ? error.message : "An unknown error occurred"
-        }`
-      );
+      // Clear the timeout since we're handling the error
+      clearTimeout(loginTimeout);
+
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes("Invalid login credentials")) {
+          setMessage("Invalid email or password. Please try again.");
+        } else if (
+          error.message.includes("timeout") ||
+          error.message.includes("connection")
+        ) {
+          setMessage(
+            "Connection issue. Please check your internet and try again."
+          );
+        } else if (error.message.includes("profile")) {
+          setMessage("Issue with user profile. Please contact support.");
+        } else {
+          setMessage(`Error: ${error.message}`);
+        }
+      } else {
+        setMessage("An unknown error occurred. Please try again.");
+      }
     } finally {
+      console.log("Auth process complete, setting loading to false");
       setLoading(false);
+      clearTimeout(loginTimeout); // Ensure timeout is cleared in all cases
     }
   };
 
-  const handleForgotPassword = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setMessage(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
-      });
+      const { error } = await resetPassword(email);
       if (error) throw error;
-      setMessage("Check your email for the password reset link!");
-    } catch (error: unknown) {
+      setMessage("Password reset instructions sent to your email.");
+    } catch (error) {
       console.error("Password reset error:", error);
       setMessage(
         `Error: ${
@@ -108,8 +153,9 @@ export default function Auth() {
   const toggleAuthMode = () => {
     setIsSignUp(!isSignUp);
     setShowForgotPassword(false);
-    setMessage(null); // Clear messages when switching modes
-    setEmail(""); // Clear fields
+    setMessage(null);
+    // Reset form fields
+    setEmail("");
     setPassword("");
     setFirstName("");
     setLastName("");
@@ -123,7 +169,7 @@ export default function Auth() {
           {/* Left Column - Landing Page Content */}
           <div className="space-y-8">
             <div className="flex items-center gap-2">
-              <Wallet className="h-8 w-8 text-indigo-600" />
+              <DollarSign className="h-8 w-8 text-indigo-600" />
               <h1 className="text-2xl font-bold text-gray-900">
                 Budget Tracker
               </h1>

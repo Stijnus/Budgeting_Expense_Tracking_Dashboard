@@ -28,6 +28,22 @@ A modern web application that helps users track and manage their personal expens
 - View historical budget performance
 - Customizable budget categories
 
+### 💼 Bills & Subscriptions
+
+- Track recurring bills and subscriptions
+- Set due dates and payment frequencies
+- Mark bills as paid
+- Get reminders for upcoming payments
+- View payment history
+
+### 🎯 Financial Goals
+
+- Set savings and financial goals
+- Track progress towards goals
+- Set target dates
+- Visualize goal completion
+- Celebrate achievements
+
 ### 🔐 Authentication & User Management
 
 - **Enhanced Login & Registration**:
@@ -72,12 +88,14 @@ A modern web application that helps users track and manage their personal expens
   - Custom hooks
   - Context API for state management
   - Type-safe development
+  - Feature-based folder structure
 
 - **Styling & UI**
   - Tailwind CSS for styling
   - Lucide React for icons
   - Responsive design patterns
   - CSS Grid and Flexbox layouts
+  - Recharts for data visualization
 
 ### Backend
 
@@ -87,6 +105,8 @@ A modern web application that helps users track and manage their personal expens
   - Edge Functions
   - Row Level Security (RLS)
   - Authentication services
+  - Database migrations
+  - Type generation
 
 ## 🔒 Security Features
 
@@ -109,17 +129,23 @@ A modern web application that helps users track and manage their personal expens
 
 - **Users**:
 
-  - Core user data
-  - Profile preferences
-  - Authentication details
-  - Account settings
+  - `user_profiles`: Core user data and profile information
+  - `user_settings`: User preferences and settings
 
 - **Financial Data**:
-  - Expenses
-  - Categories
-  - Budgets
-  - Tags
-  - Transaction history
+
+  - `transactions`: Expense and income records
+  - `categories`: Transaction categories
+  - `budgets`: Budget allocations
+  - `tags`: Reusable tags for transactions
+  - `transaction_tags`: Junction table linking transactions to tags
+
+- **Bills & Subscriptions**:
+
+  - `bills_subscriptions`: Recurring bills and subscription tracking with frequency, due dates, and payment status
+
+- **Financial Goals**:
+  - `financial_goals`: Savings goals with target amounts, current progress, and completion status
 
 ## 🔄 Account Management
 
@@ -142,13 +168,74 @@ A modern web application that helps users track and manage their personal expens
   - Cascading deletions
   - Grace period
 
+## 📂 Project Structure
+
+The project follows a feature-based organization pattern for better maintainability and scalability:
+
+```
+src/
+├── api/                  # API layer
+│   ├── supabase/         # Supabase client and API functions
+│   │   ├── auth.ts       # Authentication functions
+│   │   ├── bills.ts      # Bills & subscriptions functions
+│   │   ├── budgets.ts    # Budget management functions
+│   │   ├── client.ts     # Supabase client configuration
+│   │   ├── expenses.ts   # Expense tracking functions
+│   │   ├── goals.ts      # Financial goals functions
+│   │   └── index.ts      # API exports
+│   └── types/            # API-related type definitions
+│       └── database.types.ts # Generated Supabase types
+├── components/           # Global components
+├── features/             # Feature modules
+│   ├── auth/             # Authentication feature
+│   │   └── components/   # Auth-related components
+│   ├── bills/            # Bills & subscriptions feature
+│   │   └── components/   # Bills-related components
+│   ├── budgets/          # Budget management feature
+│   │   └── components/   # Budget-related components
+│   ├── dashboard/        # Dashboard feature
+│   │   └── components/   # Dashboard-related components
+│   ├── expenses/         # Expense tracking feature
+│   │   └── components/   # Expense-related components
+│   └── goals/            # Financial goals feature
+│       └── components/   # Goals-related components
+├── pages/                # Page components
+│   ├── AnalyticsPage.tsx       # Analytics and reporting
+│   ├── BillsSubscriptionsPage.tsx # Bills and subscriptions management
+│   ├── BudgetsPage.tsx         # Budget management
+│   ├── CategoriesPage.tsx      # Category management
+│   ├── DashboardPage.tsx       # Main dashboard
+│   ├── ExpensesPage.tsx        # Expense tracking
+│   ├── GoalsPage.tsx           # Financial goals
+│   ├── HistoryPage.tsx         # Transaction history
+│   ├── IncomePage.tsx          # Income tracking
+│   ├── LandingPage.tsx         # Landing/login page
+│   ├── NotFoundPage.tsx        # 404 page
+│   └── SettingsPage.tsx        # User settings
+├── shared/               # Shared utilities and components
+│   └── components/       # Shared UI components
+│       └── layout/       # Layout components
+├── state/                # Global state management
+│   ├── auth/             # Auth-related state
+│   └── settings/         # Settings-related state
+└── utils/                # Utility functions
+```
+
+This structure provides several benefits:
+
+- Clear separation of concerns
+- Better code organization by feature
+- Improved developer experience
+- Easier maintenance and scalability
+- Better reusability of components
+
 ## 🚀 Getting Started
 
 1. **Clone & Setup**:
 
    ```bash
-   git clone <repository-url>
-   cd <project-directory>
+   git clone https://github.com/Stijnus/Budgeting_Expense_Tracking_Dashboard.git
+   cd Budgeting_Expense_Tracking_Dashboard
    ```
 
 2. **Install Dependencies**:
@@ -162,23 +249,31 @@ A modern web application that helps users track and manage their personal expens
    - Create `.env` file
    - Add required variables:
      ```env
-     SUPABASE_URL=your_supabase_project_url
-     SUPABASE_ANON_KEY=your_supabase_anon_key
-     SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+     VITE_SUPABASE_URL=your_supabase_project_url
+     VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+     VITE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
      ```
 
 4. **Development**:
+
    ```bash
    npm run dev
+   ```
+
+5. **Type Checking & Linting**:
+   ```bash
+   npm run type-check  # Check TypeScript types
+   npm run lint        # Run ESLint
+   npm run lint:fix    # Fix ESLint issues
    ```
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_ANON_KEY`: Public API key
-- `SUPABASE_SERVICE_ROLE_KEY`: Admin API key (secure)
+- `VITE_SUPABASE_URL`: Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY`: Public API key
+- `VITE_SUPABASE_SERVICE_ROLE_KEY`: Admin API key (secure)
 
 ### Supabase Setup
 
@@ -187,6 +282,28 @@ A modern web application that helps users track and manage their personal expens
 3. Configure email templates
 4. Set up database tables
 5. Apply RLS policies
+
+## 📝 Recent Updates
+
+### Code Reorganization
+
+- **Feature-based Structure**: Reorganized the codebase into a feature-based structure for better maintainability
+- **API Layer Separation**: Moved all API-related code to a dedicated `api` directory
+- **State Management**: Centralized state management in the `state` directory
+- **Shared Components**: Created a `shared` directory for reusable components
+- **Page Components**: Separated page components into a dedicated `pages` directory
+
+### New Features
+
+- **Bills & Subscriptions Management**: Added functionality to track recurring bills and subscriptions with frequency options and payment status tracking
+- **Financial Goals**: Implemented goal setting and progress tracking with target dates and completion status
+- **Transaction Tags System**: Added a comprehensive tagging system for transactions with many-to-many relationships
+- **Analytics Dashboard**: Enhanced data visualization with more charts and insights
+- **Budget Management**: Added comprehensive budget tracking functionality with category-based budgeting
+- **Income Tracking**: Added ability to track and manage income with the same robust features as expenses
+- **Expense Categories**: Implemented category management with custom colors for better expense organization
+- **Data Visualization**: Added charts for expense categories and spending trends using Recharts
+- **Settings Page**: Added user settings for customization including currency preferences
 
 ## 🎯 Future Enhancements
 
@@ -230,7 +347,7 @@ A modern web application that helps users track and manage their personal expens
 
 - **Social Features**:
   - Shared budgets
-  - Financial goals
+  - Shared financial goals
   - Community tips
   - Achievement system
 
