@@ -3,6 +3,7 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "../../api/supabase/client";
 import { getUserProfile } from "../../api/supabase/auth";
 import { AuthContext, type UserProfile } from "./auth-context";
+import { cleanupAuthData } from "../../utils/auth-debug";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -73,9 +74,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Handle session error (but not just missing session)
         if (sessionError) {
           console.log(
-            "AuthProvider: Session error detected, clearing session..."
+            "AuthProvider: Session error detected, cleaning up session..."
           );
-          clearSession();
+          // Use the less aggressive cleanup first
+          cleanupAuthData();
+          // If we still have a session error after cleanup, clear everything
+          const { error: retryError } = await supabase.auth.getSession();
+          if (retryError) {
+            console.log(
+              "AuthProvider: Session error persists after cleanup, clearing session..."
+            );
+            clearSession();
+          }
           setLoading(false);
           return;
         }
@@ -93,11 +103,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (refreshError || !refreshData.session) {
               console.log(
-                "AuthProvider: Session refresh failed, clearing stale session..."
+                "AuthProvider: Session refresh failed, cleaning up stale session..."
               );
-              clearSession();
-              setLoading(false);
-              return;
+              // Try the less aggressive cleanup first
+              cleanupAuthData();
+              // If we still don't have a session after cleanup, clear everything
+              const { data: retryData } = await supabase.auth.getSession();
+              if (!retryData.session) {
+                console.log(
+                  "AuthProvider: No session after cleanup, clearing all auth data"
+                );
+                clearSession();
+                setLoading(false);
+                return;
+              } else {
+                console.log("AuthProvider: Session recovered after cleanup");
+                session = retryData.session;
+              }
             } else {
               // Session was successfully refreshed
               console.log("AuthProvider: Session successfully refreshed");

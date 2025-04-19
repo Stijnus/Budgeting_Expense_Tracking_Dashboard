@@ -1,6 +1,12 @@
-import { useState } from 'react';
-import { useAuth } from '../state/auth/useAuth';
-import { diagnoseSessionIssues, fixSessionIssues, clearAuthData } from '../utils/auth-debug';
+import { useState, useEffect } from "react";
+import { useAuth } from "../state/auth/useAuth";
+import {
+  diagnoseSessionIssues,
+  fixSessionIssues,
+  clearAuthData,
+  cleanupAuthData,
+  checkAndFixAuthState,
+} from "../utils/auth-debug";
 
 /**
  * A debug component for diagnosing and fixing authentication issues
@@ -11,7 +17,39 @@ export default function AuthDebug() {
   const [diagnosticResults, setDiagnosticResults] = useState<any>(null);
   const [fixResults, setFixResults] = useState<any>(null);
   const [clearResults, setClearResults] = useState<any>(null);
+  const [cleanupResults, setCleanupResults] = useState<any>(null);
+  const [checkResults, setCheckResults] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
+
+  // Run a check on component mount to automatically fix auth issues
+  useEffect(() => {
+    const autoCheck = async () => {
+      try {
+        const results = await checkAndFixAuthState();
+        if (results.fixed) {
+          console.log("Auto-fixed auth state:", results.action);
+        }
+      } catch (error) {
+        console.error("Error in auto auth check:", error);
+      }
+    };
+
+    autoCheck();
+
+    // Set up periodic checks
+    const intervalId = setInterval(async () => {
+      try {
+        const results = await checkAndFixAuthState();
+        if (results.fixed) {
+          console.log("Periodic auth check fixed issues:", results.action);
+        }
+      } catch (error) {
+        console.error("Error in periodic auth check:", error);
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const runDiagnostics = async () => {
     const results = await diagnoseSessionIssues();
@@ -26,6 +64,16 @@ export default function AuthDebug() {
   const clearAuth = () => {
     const results = clearAuthData();
     setClearResults(results);
+  };
+
+  const cleanupAuth = () => {
+    const results = cleanupAuthData();
+    setCleanupResults(results);
+  };
+
+  const checkAuth = async () => {
+    const results = await checkAndFixAuthState();
+    setCheckResults(results);
   };
 
   if (!showDebug) {
@@ -56,11 +104,11 @@ export default function AuthDebug() {
       <div className="mb-4">
         <h4 className="font-semibold mb-2">Current Auth State</h4>
         <div className="bg-gray-100 p-2 rounded text-xs font-mono">
-          <div>User: {user ? 'Authenticated' : 'Not authenticated'}</div>
-          <div>User ID: {user?.id || 'None'}</div>
-          <div>Email: {user?.email || 'None'}</div>
-          <div>Profile: {profile ? 'Loaded' : 'Not loaded'}</div>
-          <div>Loading: {loading ? 'True' : 'False'}</div>
+          <div>User: {user ? "Authenticated" : "Not authenticated"}</div>
+          <div>User ID: {user?.id || "None"}</div>
+          <div>Email: {user?.email || "None"}</div>
+          <div>Profile: {profile ? "Loaded" : "Not loaded"}</div>
+          <div>Loading: {loading ? "True" : "False"}</div>
         </div>
       </div>
 
@@ -72,19 +120,37 @@ export default function AuthDebug() {
           Run Diagnostics
         </button>
 
-        <button
-          onClick={attemptFix}
-          className="w-full bg-green-600 text-white px-3 py-2 rounded-md text-sm"
-        >
-          Attempt Fix
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={attemptFix}
+            className="bg-green-600 text-white px-3 py-2 rounded-md text-sm"
+          >
+            Attempt Fix
+          </button>
 
-        <button
-          onClick={clearAuth}
-          className="w-full bg-red-600 text-white px-3 py-2 rounded-md text-sm"
-        >
-          Clear Auth Data
-        </button>
+          <button
+            onClick={checkAuth}
+            className="bg-indigo-600 text-white px-3 py-2 rounded-md text-sm"
+          >
+            Check & Fix
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={cleanupAuth}
+            className="bg-yellow-600 text-white px-3 py-2 rounded-md text-sm"
+          >
+            Cleanup Auth
+          </button>
+
+          <button
+            onClick={clearAuth}
+            className="bg-red-600 text-white px-3 py-2 rounded-md text-sm"
+          >
+            Clear Auth
+          </button>
+        </div>
       </div>
 
       {diagnosticResults && (
@@ -110,6 +176,24 @@ export default function AuthDebug() {
           <h4 className="font-semibold mb-2">Clear Results</h4>
           <div className="bg-gray-100 p-2 rounded text-xs font-mono overflow-auto max-h-40">
             <pre>{JSON.stringify(clearResults, null, 2)}</pre>
+          </div>
+        </div>
+      )}
+
+      {cleanupResults && (
+        <div className="mt-4">
+          <h4 className="font-semibold mb-2">Cleanup Results</h4>
+          <div className="bg-gray-100 p-2 rounded text-xs font-mono overflow-auto max-h-40">
+            <pre>{JSON.stringify(cleanupResults, null, 2)}</pre>
+          </div>
+        </div>
+      )}
+
+      {checkResults && (
+        <div className="mt-4">
+          <h4 className="font-semibold mb-2">Check & Fix Results</h4>
+          <div className="bg-gray-100 p-2 rounded text-xs font-mono overflow-auto max-h-40">
+            <pre>{JSON.stringify(checkResults, null, 2)}</pre>
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import {
   IncomeExpenseChart,
 } from "../features/dashboard/components";
 import { supabase } from "../api/supabase/client";
+import { getUserTransactions, retryQuery } from "../utils/db-helpers";
 import {
   Wallet,
   DollarSign,
@@ -15,6 +16,7 @@ import {
   TrendingUp,
   Calendar,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -26,34 +28,43 @@ export default function DashboardPage() {
   const [totalBalance, setTotalBalance] = useState(0);
   const [monthlyExpenses, setMonthlyExpenses] = useState(0);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Function to fetch dashboard summary data
   const fetchDashboardData = async () => {
     console.log("Dashboard: Starting data fetch...");
     setLoading(true);
+    setError(null);
 
     // Set a timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
       console.log("Dashboard: Fetch timeout reached, resetting loading state");
       setLoading(false);
-    }, 15000); // 15 second timeout
+      setError("Data fetch timed out. Please try again.");
+    }, 20000); // 20 second timeout
 
     try {
-      console.log("Dashboard: Fetching user data...");
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      // Use retryQuery to get the current user with retries
+      const currentUser = await retryQuery(async () => {
+        console.log("Dashboard: Fetching user data...");
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError) {
-        console.error("Dashboard: User error:", userError);
-        throw userError;
-      }
+        if (userError) {
+          console.error("Dashboard: User error:", userError);
+          throw userError;
+        }
 
-      if (!user) {
-        console.error("Dashboard: No user found");
-        throw new Error("User not found");
-      }
+        if (!user) {
+          console.error("Dashboard: No user found");
+          throw new Error("User not found");
+        }
+
+        return user;
+      });
 
       console.log("Dashboard: User found, fetching transactions...");
 
@@ -62,30 +73,8 @@ export default function DashboardPage() {
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      const startDate = firstDay.toISOString().split("T")[0];
-      const endDate = lastDay.toISOString().split("T")[0];
-
-      // Fetch all transactions - we don't need to filter by date here since we'll do that in memory
-      const { data: transactions, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("amount, type, date")
-        .eq("user_id", user.id);
-
-      if (transactionsError) {
-        console.error("Dashboard: Transaction fetch error:", transactionsError);
-        throw transactionsError;
-      }
-
-      if (!transactions) {
-        console.log("Dashboard: No transactions found, using empty array");
-        // Set default values and exit early
-        setTotalBalance(0);
-        setMonthlyExpenses(0);
-        setMonthlyIncome(0);
-        clearTimeout(timeoutId);
-        setLoading(false);
-        return;
-      }
+      // Use our utility function to get transactions with retry and fallback
+      const transactions = await getUserTransactions(currentUser.id);
 
       console.log(
         `Dashboard: Found ${transactions.length} transactions, calculating totals...`
@@ -119,6 +108,7 @@ export default function DashboardPage() {
       setTotalBalance(balance);
       setMonthlyExpenses(expenses);
       setMonthlyIncome(income);
+      setLastUpdated(new Date());
       console.log("Dashboard: Data fetch complete");
     } catch (error) {
       console.error("Dashboard: Error fetching dashboard data:", error);
@@ -126,11 +116,19 @@ export default function DashboardPage() {
       setTotalBalance(0);
       setMonthlyExpenses(0);
       setMonthlyIncome(0);
+      setError(
+        error instanceof Error ? error.message : "Failed to load dashboard data"
+      );
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
       console.log("Dashboard: Loading state set to false");
     }
+  };
+
+  // Function to refresh dashboard data
+  const refreshData = () => {
+    fetchDashboardData();
   };
 
   // Fetch data on component mount
@@ -158,10 +156,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Function to refresh data
-  const refreshData = () => {
-    fetchDashboardData();
-  };
+  // This function is already defined above
 
   // Handle expense or income added
   const handleTransactionAdded = () => {
@@ -190,7 +185,11 @@ export default function DashboardPage() {
             <p className="text-3xl font-bold text-indigo-600">
               ${totalBalance.toFixed(2)}
             </p>
-            <p className="text-sm text-gray-500 mt-2">Updated just now</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {lastUpdated
+                ? `Updated ${lastUpdated.toLocaleTimeString()}`
+                : "Not yet updated"}
+            </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -206,7 +205,7 @@ export default function DashboardPage() {
               Budget Status
             </h3>
             <p className="text-3xl font-bold text-green-600">
-              ${monthlyIncome > monthlyExpenses ? "On Track" : "Over Budget"}
+              {monthlyIncome > monthlyExpenses ? "On Track" : "Over Budget"}
             </p>
             <p className="text-sm text-gray-500 mt-2">
               {monthlyIncome > monthlyExpenses
@@ -350,27 +349,60 @@ export default function DashboardPage() {
               Monthly Summary
             </h2>
             <div className="flex items-center space-x-2">
-              <button className="p-1 text-gray-400 hover:text-gray-600">
-                &lt;
+              <button
+                onClick={refreshData}
+                className="p-2 rounded-full text-indigo-600 hover:bg-indigo-50 transition-colors"
+                disabled={loading}
+              >
+                <RefreshCw
+                  className={`h-5 w-5 ${loading ? "animate-spin" : ""}`}
+                />
               </button>
-              <span className="text-sm font-medium">April 2023</span>
-              <button className="p-1 text-gray-400 hover:text-gray-600">
-                &gt;
-              </button>
+              <span className="text-sm font-medium">
+                {new Date().toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
             </div>
           </div>
           <div className="p-4">
-            <div className="flex flex-col items-center justify-center h-48 text-center">
-              <div className="p-3 rounded-full bg-red-50 mb-3">
-                <AlertTriangle className="h-8 w-8 text-red-500" />
+            {error ? (
+              <div className="flex flex-col items-center justify-center h-48 text-center">
+                <div className="p-3 rounded-full bg-red-50 mb-3">
+                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                </div>
+                <p className="text-red-500 font-medium">Failed to load data</p>
+                <p className="text-gray-500 text-sm mt-1">{error}</p>
+                <button
+                  onClick={refreshData}
+                  className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Try Again
+                </button>
               </div>
-              <p className="text-red-500 font-medium">
-                Failed to load report data
-              </p>
-              <p className="text-gray-500 text-sm mt-1">
-                Relation "public.incomes" does not exist
-              </p>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48 text-center">
+                <p className="text-xl font-medium text-gray-800">
+                  Monthly Balance: $
+                  {(monthlyIncome - monthlyExpenses).toFixed(2)}
+                </p>
+                <div className="flex justify-between w-full max-w-md mt-4">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Income</p>
+                    <p className="text-lg font-medium text-green-600">
+                      ${monthlyIncome.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Expenses</p>
+                    <p className="text-lg font-medium text-red-600">
+                      ${monthlyExpenses.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

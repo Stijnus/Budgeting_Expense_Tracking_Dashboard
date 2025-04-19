@@ -1,4 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate,
+} from "react-router-dom";
+import { useEffect } from "react";
 import { AuthProvider } from "./state/auth/AuthContext";
 import { SettingsProvider } from "./state/settings/SettingsContext";
 import { ProtectedRoute } from "./features/auth/components/ProtectedRoute";
@@ -15,12 +21,39 @@ import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import AuthDebug from "./components/AuthDebug";
+import { checkAndFixAuthState } from "./utils/auth-debug";
+
+// Component to handle auth state check on app initialization
+function AuthStateChecker() {
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const result = await checkAndFixAuthState();
+        if (result.fixed) {
+          console.log(
+            "App: Fixed auth state on initialization:",
+            result.action
+          );
+        }
+      } catch (error) {
+        console.error("App: Error checking auth state:", error);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  return null;
+}
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <SettingsProvider>
+          {/* Auth state checker - runs on app initialization */}
+          <AuthStateChecker />
+
           {/* Auth Debug Component - only visible in development */}
           {import.meta.env.DEV && <AuthDebug />}
           <Routes>

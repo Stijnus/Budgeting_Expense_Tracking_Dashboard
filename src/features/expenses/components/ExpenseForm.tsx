@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../api/supabase/client";
 import type { Database } from "../../../api/types/database.types";
+import { retryQuery, tryWithFallback } from "../../../utils/db-helpers";
 import { Loader2, CheckCircle, AlertTriangle, Tag } from "lucide-react"; // Import icons
 
 type Category = Database["public"]["Tables"]["categories"]["Row"];
@@ -31,54 +32,64 @@ async function handleTags(
   // 1. Find existing tags or create new ones
   const tagPromises = uniqueTagNames.map(
     async (name): Promise<TagType | null> => {
-      // Check if tag exists for the user (case-insensitive)
-      const { data: existingTag, error: findError } = await supabase
-        .from("tags")
-        .select("id, name, user_id, created_at") // Select all columns needed for TagType
-        .eq("user_id", userId)
-        .ilike("name", name) // Case-insensitive search
-        .maybeSingle();
-
-      if (findError) {
-        errors.push(`Error finding tag "${name}": ${findError.message}`);
-        return null;
-      }
-
-      if (existingTag) {
-        return existingTag;
-      } else {
-        // Create new tag if it doesn't exist
-        const { data: newTag, error: createError } = await supabase
-          .from("tags")
-          .insert({ user_id: userId, name: name })
-          .select("id, name, user_id, created_at") // Select all columns
-          .single();
-
-        if (createError) {
-          // Handle potential unique constraint violation if another process created it concurrently
-          if (createError.code === "23505") {
-            // Try fetching again just in case it was created concurrently
-            const { data: retryTag, error: retryError } = await supabase
+      try {
+        // Use retryQuery to handle potential network issues
+        return await retryQuery(async () => {
+          // Check if tag exists for the user (case-insensitive)
+          const existingTagResult = await tryWithFallback("tags", (client) =>
+            client
               .from("tags")
-              .select("id, name, user_id, created_at")
+              .select("id, name, user_id, created_at") // Select all columns needed for TagType
               .eq("user_id", userId)
-              .ilike("name", name)
-              .maybeSingle();
-            if (retryError)
-              errors.push(
-                `Error retrying tag fetch "${name}": ${retryError.message}`
-              );
-            else if (retryTag) return retryTag;
-            else
-              errors.push(
-                `Failed to create or find tag "${name}" after conflict.`
-              ); // Should not happen often
+              .ilike("name", name) // Case-insensitive search
+              .maybeSingle()
+          );
+
+          if (existingTagResult) {
+            return existingTagResult;
           } else {
-            errors.push(`Error creating tag "${name}": ${createError.message}`);
+            // Create new tag if it doesn't exist
+            try {
+              const newTagResult = await tryWithFallback("tags", (client) =>
+                client
+                  .from("tags")
+                  .insert({ user_id: userId, name: name })
+                  .select("id, name, user_id, created_at") // Select all columns
+                  .single()
+              );
+
+              return newTagResult;
+            } catch (createError: any) {
+              // Handle potential unique constraint violation if another process created it concurrently
+              if (createError.code === "23505") {
+                // Try fetching again just in case it was created concurrently
+                const retryTagResult = await tryWithFallback("tags", (client) =>
+                  client
+                    .from("tags")
+                    .select("id, name, user_id, created_at")
+                    .eq("user_id", userId)
+                    .ilike("name", name)
+                    .maybeSingle()
+                );
+
+                if (retryTagResult) return retryTagResult;
+
+                errors.push(
+                  `Failed to create or find tag "${name}" after conflict.`
+                );
+                return null;
+              } else {
+                errors.push(
+                  `Error creating tag "${name}": ${createError.message}`
+                );
+                return null;
+              }
+            }
           }
-          return null;
-        }
-        return newTag;
+        }, 2); // Only retry twice for tags to avoid too many retries
+      } catch (error: any) {
+        errors.push(`Error processing tag "${name}": ${error.message}`);
+        return null;
       }
     }
   );
@@ -89,16 +100,16 @@ async function handleTags(
 
   // 2. Link tags to the expense
   if (resolvedTags.length > 0) {
-    const links = resolvedTags.map((tag) => ({
-      transaction_id: expenseId,
-      tag_id: tag.id,
-    }));
+    try {
+      const links = resolvedTags.map((tag) => ({
+        transaction_id: expenseId,
+        tag_id: tag.id,
+      }));
 
-    const { error: linkError } = await supabase
-      .from("transaction_tags")
-      .insert(links);
-
-    if (linkError) {
+      await tryWithFallback("transaction_tags", (client) =>
+        client.from("transaction_tags").insert(links)
+      );
+    } catch (linkError: any) {
       // Ignore primary key violations (tag already linked), log others
       if (linkError.code !== "23505") {
         errors.push(`Error linking tags: ${linkError.message}`);
@@ -133,22 +144,28 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
       setFetchingCategories(true);
       setError(null);
       try {
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-        if (sessionError || !session?.user)
-          throw sessionError || new Error("User not logged in");
+        // Use retryQuery to get the current user with retries
+        const user = await retryQuery(async () => {
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
+          if (userError || !user)
+            throw userError || new Error("User not logged in");
+          return user;
+        });
 
-        const { data, error } = await supabase
-          .from("categories")
-          .select("id, name")
-          .eq("user_id", session.user.id)
-          .order("name", { ascending: true });
+        // Use tryWithFallback to attempt the query with regular client first, then admin if needed
+        const categoriesData = await tryWithFallback("categories", (client) =>
+          client
+            .from("categories")
+            .select("id, name")
+            .eq("user_id", user.id)
+            .order("name", { ascending: true })
+        );
 
-        if (error) throw error;
         if (isMounted) {
-          setCategories(data || []);
+          setCategories(categoriesData || []);
         }
       } catch (error: any) {
         console.error("Error fetching categories for form:", error);
@@ -185,11 +202,15 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
     let newExpenseId: string | null = null;
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) throw userError || new Error("User not found");
+      // Use retryQuery to get the current user with retries
+      const user = await retryQuery(async () => {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user) throw userError || new Error("User not found");
+        return user;
+      });
 
       // 1. Insert Expense as a transaction
       const transactionData: TransactionInsert = {
@@ -201,13 +222,19 @@ export default function ExpenseForm({ onExpenseAdded }: ExpenseFormProps) {
         type: "EXPENSE",
         currency: "USD", // Default currency
       };
-      const { data: newExpense, error: insertError } = await supabase
-        .from("transactions")
-        .insert(transactionData)
-        .select("id") // Select only the ID
-        .single(); // Expect a single row back
 
-      if (insertError) throw insertError;
+      // Use tryWithFallback to attempt the insert with regular client first, then admin if needed
+      const newExpense = await tryWithFallback(
+        "transactions",
+        async (client) => {
+          return await client
+            .from("transactions")
+            .insert(transactionData)
+            .select("id") // Select only the ID
+            .single(); // Expect a single row back
+        }
+      );
+
       if (!newExpense?.id) throw new Error("Failed to get new expense ID.");
       newExpenseId = newExpense.id;
 
