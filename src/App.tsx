@@ -14,12 +14,15 @@ import GoalsPage from "./pages/GoalsPage";
 import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import AuthDebug from "./components/AuthDebug";
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <SettingsProvider>
+          {/* Auth Debug Component - only visible in development */}
+          {import.meta.env.DEV && <AuthDebug />}
           <Routes>
             <Route path="/" element={<LandingPage initialMode="signin" />} />
             <Route

@@ -9,6 +9,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const [showLoading, setShowLoading] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
   useEffect(() => {
     // Only show loading spinner after a short delay to prevent flash
@@ -17,22 +18,46 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       timeoutId = window.setTimeout(() => {
         setShowLoading(true);
       }, 500);
+
+      // Set a safety timeout to prevent infinite loading
+      const safetyTimeoutId = window.setTimeout(() => {
+        console.log(
+          "ProtectedRoute: Safety timeout triggered, forcing loading to false"
+        );
+        setLoadingTimeout(true);
+      }, 10000); // 10 second safety timeout
+
+      return () => {
+        window.clearTimeout(timeoutId);
+        window.clearTimeout(safetyTimeoutId);
+      };
     } else {
       setShowLoading(false);
-    }
+      setLoadingTimeout(false);
 
-    return () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
+      return () => {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+      };
+    }
   }, [loading]);
 
   console.log("ProtectedRoute: Current state:", {
     hasUser: !!user,
     loading,
     showLoading,
+    loadingTimeout,
   });
+
+  // If loading timeout has been triggered, proceed as if we have a user
+  // This prevents getting stuck in a loading state
+  if (loadingTimeout && loading) {
+    console.log(
+      "ProtectedRoute: Loading timeout triggered, proceeding with children"
+    );
+    return <>{children}</>;
+  }
 
   if (loading) {
     if (!showLoading) {

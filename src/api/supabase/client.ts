@@ -37,6 +37,46 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    storageKey: "supabase.auth.token",
+    storage: {
+      getItem: (key) => {
+        try {
+          // Try localStorage first
+          const localValue = localStorage.getItem(key);
+          if (localValue) return localValue;
+
+          // Fall back to sessionStorage
+          return sessionStorage.getItem(key);
+        } catch (error) {
+          console.error("Error accessing storage:", error);
+          return null;
+        }
+      },
+      setItem: (key, value) => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          console.error("Error setting item in localStorage:", error);
+          try {
+            // Fall back to sessionStorage if localStorage fails
+            sessionStorage.setItem(key, value);
+          } catch (sessionError) {
+            console.error(
+              "Error setting item in sessionStorage:",
+              sessionError
+            );
+          }
+        }
+      },
+      removeItem: (key) => {
+        try {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        } catch (error) {
+          console.error("Error removing item from storage:", error);
+        }
+      },
+    },
   },
   db: {
     schema: "public",

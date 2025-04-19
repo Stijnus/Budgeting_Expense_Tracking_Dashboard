@@ -22,7 +22,7 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const { signIn, signUp, resetPassword, clearSession } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
 
   // Update isSignUp when initialMode changes
   useEffect(() => {
@@ -77,10 +77,8 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
         );
       } else {
         console.log("Starting login process...");
-        // Clear any existing session before attempting to sign in
-        // This helps prevent issues with stale sessions
-        console.log("Clearing existing session...");
-        clearSession();
+        // Don't clear the session before signing in - this can cause issues
+        // with session persistence after page reloads
 
         console.log("Attempting to sign in...");
         const { error } = await signIn(email, password);

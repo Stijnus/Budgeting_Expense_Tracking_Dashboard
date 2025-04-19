@@ -37,6 +37,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log("AuthProvider: Starting initialization");
+
+    // Safety timeout to prevent getting stuck in loading state
+    const safetyTimeoutId = setTimeout(() => {
+      console.log(
+        "AuthProvider: Safety timeout triggered, resetting loading state"
+      );
+      setLoading(false);
+    }, 10000); // 10 second safety timeout
+
     // Get initial session
     const initializeAuth = async () => {
       console.log("AuthProvider: Initializing auth...");
@@ -49,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
 
         // Get current session from Supabase
-        const {
+        let {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
@@ -61,20 +70,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           hasLocalStorageSession ? "Exists" : "None"
         );
 
-        // Handle potential stale session
-        if (sessionError || (hasLocalStorageSession && !session)) {
-          console.log("AuthProvider: Detected stale session, clearing...");
+        // Handle session error (but not just missing session)
+        if (sessionError) {
+          console.log(
+            "AuthProvider: Session error detected, clearing session..."
+          );
           clearSession();
           setLoading(false);
           return;
         }
 
+        // Only clear if we have local storage tokens but Supabase reports no session
+        // This is a more conservative approach to avoid clearing valid sessions
+        if (hasLocalStorageSession && !session) {
+          console.log(
+            "AuthProvider: Potential stale session detected, attempting refresh..."
+          );
+          try {
+            // Try to refresh the session before clearing
+            const { data: refreshData, error: refreshError } =
+              await supabase.auth.refreshSession();
+
+            if (refreshError || !refreshData.session) {
+              console.log(
+                "AuthProvider: Session refresh failed, clearing stale session..."
+              );
+              clearSession();
+              setLoading(false);
+              return;
+            } else {
+              // Session was successfully refreshed
+              console.log("AuthProvider: Session successfully refreshed");
+              session = refreshData.session;
+            }
+          } catch (refreshException) {
+            console.error(
+              "AuthProvider: Error during session refresh:",
+              refreshException
+            );
+            clearSession();
+            setLoading(false);
+            return;
+          }
+        }
+
         if (session?.user) {
           setUser(session.user);
           console.log("AuthProvider: Fetching user profile...");
+
+          // Set a timeout for profile fetching to prevent getting stuck in loading state
+          const initialProfileTimeoutId = setTimeout(() => {
+            console.log(
+              "AuthProvider: Initial profile fetch timeout reached, setting loading to false"
+            );
+            setLoading(false);
+          }, 5000); // 5 second timeout for profile fetch
+
           try {
             try {
               let userProfile = await getUserProfile(session.user.id);
+              // Clear the timeout since we got a response
+              clearTimeout(initialProfileTimeoutId);
 
               // Check if this is a fallback profile
               const isFallback =
@@ -104,6 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               );
               setProfile(userProfile);
             } catch (fetchError) {
+              // Clear the timeout since we got a response (even if it's an error)
+              clearTimeout(initialProfileTimeoutId);
               console.error(
                 "AuthProvider: Error fetching profile:",
                 fetchError
@@ -134,17 +192,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   clearSession();
                 }
               } else {
-                // If we can't get the profile, the session might be invalid
-                clearSession();
+                // Don't clear session just because we can't get the profile
+                // This allows the user to stay logged in even if profile fetch fails
+                console.log(
+                  "AuthProvider: Could not get profile, but keeping session active"
+                );
+                setProfile(null);
               }
             }
           } catch (profileError) {
+            // Clear the timeout since we got a response (even if it's an error)
+            clearTimeout(initialProfileTimeoutId);
             console.error(
               "AuthProvider: Error fetching initial profile:",
               profileError
             );
-            // If we can't get the profile, the session might be invalid
-            clearSession();
+            // Don't clear session just because we can't get the profile
+            console.log(
+              "AuthProvider: Error fetching profile, but keeping session active"
+            );
+            setProfile(null);
           } finally {
             setLoading(false);
           }
@@ -183,22 +250,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Handle token refresh errors
-      if (event === "TOKEN_REFRESHED" && !session) {
-        console.log("AuthProvider: Token refresh failed, clearing session...");
-        clearSession();
-        setLoading(false);
-        return;
+      // Handle token refresh events
+      if (event === "TOKEN_REFRESHED") {
+        if (!session) {
+          console.log(
+            "AuthProvider: Token refresh failed, clearing session..."
+          );
+          clearSession();
+          setLoading(false);
+          return;
+        } else {
+          console.log("AuthProvider: Token successfully refreshed");
+          // Continue with the updated session
+        }
       }
 
       if (session?.user) {
         setUser(session.user);
+
+        // Set a timeout for profile fetching to prevent getting stuck in loading state
+        const profileTimeoutId = setTimeout(() => {
+          console.log(
+            "AuthProvider: Profile fetch timeout reached, setting loading to false"
+          );
+          setLoading(false);
+        }, 5000); // 5 second timeout for profile fetch
+
         try {
           console.log(
             "AuthProvider: Fetching user profile after auth change..."
           );
           try {
             const userProfile = await getUserProfile(session.user.id);
+            // Clear the timeout since we got a response
+            clearTimeout(profileTimeoutId);
+
             console.log(
               "AuthProvider: Got user profile after auth change:",
               userProfile ? "Profile exists" : "No profile"
@@ -220,6 +306,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setProfile(userProfile);
           } catch (fetchError) {
+            // Clear the timeout since we got a response (even if it's an error)
+            clearTimeout(profileTimeoutId);
             console.error("AuthProvider: Error fetching profile:", fetchError);
 
             // Check if the error message indicates a fallback profile was created
@@ -251,6 +339,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } catch (error) {
+          // Clear the timeout since we got a response (even if it's an error)
+          clearTimeout(profileTimeoutId);
           console.error("AuthProvider: Error fetching user profile:", error);
           // Don't clear session on profile fetch error, just set profile to null
           setProfile(null);
@@ -267,6 +357,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       console.log("AuthProvider: Cleaning up auth state change listener");
+      clearTimeout(safetyTimeoutId);
       subscription.unsubscribe();
     };
   }, []);
@@ -418,21 +509,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setProfile(null);
     setIsUsingFallbackProfile(false);
-    // Clear storage
-    localStorage.removeItem("supabase.auth.token");
-    sessionStorage.removeItem("supabase.auth.token");
-    // Remove any other auth-related items
-    const authKeys = Object.keys(localStorage).filter(
-      (key) => key.startsWith("supabase.auth.") || key.includes("token")
-    );
-    authKeys.forEach((key) => localStorage.removeItem(key));
 
-    const sessionKeys = Object.keys(sessionStorage).filter(
-      (key) => key.startsWith("supabase.auth.") || key.includes("token")
-    );
-    sessionKeys.forEach((key) => sessionStorage.removeItem(key));
+    try {
+      // Clear storage in a more targeted way
+      // Only remove Supabase auth-related items
+      const authKeys = Object.keys(localStorage).filter((key) =>
+        key.startsWith("supabase.auth.")
+      );
+      authKeys.forEach((key) => {
+        console.log(`AuthProvider: Removing localStorage key: ${key}`);
+        localStorage.removeItem(key);
+      });
 
-    console.log("AuthProvider: Session state cleared");
+      const sessionKeys = Object.keys(sessionStorage).filter((key) =>
+        key.startsWith("supabase.auth.")
+      );
+      sessionKeys.forEach((key) => {
+        console.log(`AuthProvider: Removing sessionStorage key: ${key}`);
+        sessionStorage.removeItem(key);
+      });
+
+      console.log("AuthProvider: Session state cleared");
+    } catch (error) {
+      console.error("AuthProvider: Error clearing session storage:", error);
+    }
   };
 
   const signOut = async () => {
