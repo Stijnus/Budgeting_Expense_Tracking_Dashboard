@@ -1,7 +1,7 @@
 import { supabase } from "./client";
 import type { Database } from "../types/database.types";
 
-type Budget = Database["public"]["Tables"]["budgets"]["Row"];
+// We use these types for function parameters and returns
 type BudgetInsert = Database["public"]["Tables"]["budgets"]["Insert"];
 type BudgetUpdate = Database["public"]["Tables"]["budgets"]["Update"];
 
@@ -9,13 +9,15 @@ type BudgetUpdate = Database["public"]["Tables"]["budgets"]["Update"];
 export const getBudgets = async (userId: string) => {
   const { data, error } = await supabase
     .from("budgets")
-    .select(`
+    .select(
+      `
       *,
       categories (
         name,
         color
       )
-    `)
+    `
+    )
     .eq("user_id", userId)
     .order("start_date", { ascending: false });
 
@@ -27,13 +29,15 @@ export const getBudgets = async (userId: string) => {
 export const getBudget = async (budgetId: string) => {
   const { data, error } = await supabase
     .from("budgets")
-    .select(`
+    .select(
+      `
       *,
       categories (
         name,
         color
       )
-    `)
+    `
+    )
     .eq("id", budgetId)
     .single();
 
@@ -66,10 +70,7 @@ export const updateBudget = async (id: string, updates: BudgetUpdate) => {
 
 // Delete a budget
 export const deleteBudget = async (id: string) => {
-  const { error } = await supabase
-    .from("budgets")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("budgets").delete().eq("id", id);
 
   if (error) throw error;
   return true;

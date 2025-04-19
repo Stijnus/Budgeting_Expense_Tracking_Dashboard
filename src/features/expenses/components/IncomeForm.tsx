@@ -1,10 +1,10 @@
 // src/features/expenses/components/IncomeForm.tsx
-import React, { useState, useRef } from 'react';
-import { supabase } from '../../../api/supabase/client';
-import type { Database } from '../../../api/types/database.types';
-import { Loader2, CheckCircle, AlertTriangle, DollarSign } from 'lucide-react';
+import React, { useState, useRef } from "react";
+import { supabase } from "../../../api/supabase/client";
+import type { Database } from "../../../api/types/database.types";
+import { Loader2, CheckCircle, AlertTriangle, DollarSign } from "lucide-react";
 
-type IncomeInsert = Database['public']['Tables']['incomes']['Insert'];
+type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
 
 interface IncomeFormProps {
   onIncomeAdded: () => void; // Callback to notify parent (e.g., IncomeList)
@@ -12,9 +12,11 @@ interface IncomeFormProps {
 
 export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
   const [loading, setLoading] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [incomeDate, setIncomeDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [incomeDate, setIncomeDate] = useState(
+    new Date().toISOString().split("T")[0]
+  ); // Default to today
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -27,44 +29,50 @@ export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError('Please enter a valid positive amount.');
+      setError("Please enter a valid positive amount.");
       return;
     }
     if (!incomeDate) {
-      setError('Please select a date.');
+      setError("Please select a date.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw userError || new Error('User not found');
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) throw userError || new Error("User not found");
 
-      const incomeData: IncomeInsert = {
+      const transactionData: TransactionInsert = {
         user_id: user.id,
         amount: parsedAmount,
         description: description.trim() || null, // Store null if empty
-        income_date: incomeDate,
+        date: incomeDate,
+        type: "INCOME",
+        currency: "USD", // Default currency
       };
 
-      const { error: insertError } = await supabase.from('incomes').insert(incomeData);
+      const { error: insertError } = await supabase
+        .from("transactions")
+        .insert(transactionData);
 
       if (insertError) throw insertError;
 
       // Reset form and show success
-      setAmount('');
-      setDescription('');
-      setIncomeDate(new Date().toISOString().split('T')[0]); // Reset date to today
-      setSuccessMessage('Income added successfully!');
+      setAmount("");
+      setDescription("");
+      setIncomeDate(new Date().toISOString().split("T")[0]); // Reset date to today
+      setSuccessMessage("Income added successfully!");
       onIncomeAdded(); // Notify parent component
       descriptionInputRef.current?.focus(); // Focus description for next entry
 
       // Clear success message after a few seconds
       setTimeout(() => setSuccessMessage(null), 3000);
-
     } catch (error: any) {
-      console.error('Error adding income:', error);
+      console.error("Error adding income:", error);
       setError(`Failed to add income: ${error.message}`);
     } finally {
       setLoading(false);
@@ -79,7 +87,10 @@ export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Description */}
         <div>
-          <label htmlFor="income-description" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="income-description"
+            className="block text-sm font-medium text-gray-700"
+          >
             Description / Source
           </label>
           <input
@@ -97,7 +108,10 @@ export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
 
         {/* Amount */}
         <div>
-          <label htmlFor="income-amount" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="income-amount"
+            className="block text-sm font-medium text-gray-700"
+          >
             Amount *
           </label>
           <input
@@ -116,7 +130,10 @@ export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
 
         {/* Date */}
         <div>
-          <label htmlFor="income-date" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="income-date"
+            className="block text-sm font-medium text-gray-700"
+          >
             Date Received *
           </label>
           <input
@@ -132,14 +149,14 @@ export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
 
         {/* Feedback Messages */}
         {error && (
-            <p className="text-sm text-red-600 flex items-center gap-1">
-                <AlertTriangle size={16} /> {error}
-            </p>
+          <p className="text-sm text-red-600 flex items-center gap-1">
+            <AlertTriangle size={16} /> {error}
+          </p>
         )}
         {successMessage && (
-            <p className="text-sm text-green-600 flex items-center gap-1">
-                <CheckCircle size={16} /> {successMessage}
-            </p>
+          <p className="text-sm text-green-600 flex items-center gap-1">
+            <CheckCircle size={16} /> {successMessage}
+          </p>
         )}
 
         {/* Submit Button */}
@@ -150,7 +167,7 @@ export default function IncomeForm({ onIncomeAdded }: IncomeFormProps) {
             className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 flex items-center justify-center"
           >
             {loading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
-            {loading ? 'Adding...' : 'Add Income'}
+            {loading ? "Adding..." : "Add Income"}
           </button>
         </div>
       </form>

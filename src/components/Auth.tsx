@@ -1,73 +1,74 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { supabase } from "../api/supabase/client";
 import {
+  Mail,
+  Lock,
+  ChevronRight,
   DollarSign,
   Clock,
   Bell,
+  Wallet,
   User,
-  Mail,
-  Lock,
   Phone,
-  ChevronRight,
 } from "lucide-react";
-import { useAuth } from "../state/auth/useAuth";
+// User types are handled directly in the insert operation
 
-interface LandingPageProps {
-  initialMode?: "signin" | "signup";
-}
-
-export default function LandingPage({ initialMode }: LandingPageProps) {
-  const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(initialMode !== "signin");
+export default function Auth() {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const { signIn, signUp, resetPassword } = useAuth();
-
-  // Update isSignUp when initialMode changes
-  useEffect(() => {
-    if (initialMode === "signin") {
-      setIsSignUp(false);
-    } else if (initialMode === "signup") {
-      setIsSignUp(true);
-    }
-  }, [initialMode]);
-
-  // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [isSignUp, setIsSignUp] = useState(true); // Toggle between Sign Up and Sign In
+  const [message, setMessage] = useState<string | null>(null); // For user feedback
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setLoading(true);
-    setMessage(null);
+    setMessage(null); // Clear previous messages
+
+    const credentials = { email, password };
 
     try {
+      let error = null;
       if (isSignUp) {
-        const { error } = await signUp(email, password, {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-          // Store phone number in metadata or user profile table instead
-        });
+        // First, sign up the user
+        const { data: authData, error: signUpError } =
+          await supabase.auth.signUp(credentials);
+        error = signUpError;
 
-        if (error) throw error;
-        setMessage(
-          "Registration successful! Please check your email for confirmation."
-        );
+        if (!error && authData.user) {
+          // Then create their profile
+          const { error: profileError } = await supabase
+            .from("user_profiles")
+            .insert({
+              id: authData.user.id,
+              first_name: firstName,
+              last_name: lastName,
+              phone_number: phoneNumber || null,
+              role: "user" as const, // Default role
+              email: email,
+            });
+
+          if (profileError) {
+            console.error("Profile creation error:", profileError);
+            error = profileError;
+          }
+        }
+
+        if (!error) setMessage("Check your email for the confirmation link!");
       } else {
-        const { error } = await signIn(email, password);
-        if (error) throw error;
-
-        // Successfully logged in, navigate to dashboard
-        console.log("Sign in successful, navigating to dashboard");
-        navigate("/dashboard");
+        const { error: signInError } = await supabase.auth.signInWithPassword(
+          credentials
+        );
+        error = signInError;
+        // No message needed on successful sign-in, App.tsx will handle redirect/UI change
       }
-    } catch (error) {
+
+      if (error) throw error;
+    } catch (error: unknown) {
       console.error("Authentication error:", error);
       setMessage(
         `Error: ${
@@ -79,16 +80,20 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleForgotPassword = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
     setLoading(true);
     setMessage(null);
 
     try {
-      const { error } = await resetPassword(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
       if (error) throw error;
-      setMessage("Password reset instructions sent to your email.");
-    } catch (error) {
+      setMessage("Check your email for the password reset link!");
+    } catch (error: unknown) {
       console.error("Password reset error:", error);
       setMessage(
         `Error: ${
@@ -103,9 +108,8 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
   const toggleAuthMode = () => {
     setIsSignUp(!isSignUp);
     setShowForgotPassword(false);
-    setMessage(null);
-    // Reset form fields
-    setEmail("");
+    setMessage(null); // Clear messages when switching modes
+    setEmail(""); // Clear fields
     setPassword("");
     setFirstName("");
     setLastName("");
@@ -119,7 +123,7 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
           {/* Left Column - Landing Page Content */}
           <div className="space-y-8">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-indigo-600" />
+              <Wallet className="h-8 w-8 text-indigo-600" />
               <h1 className="text-2xl font-bold text-gray-900">
                 Budget Tracker
               </h1>

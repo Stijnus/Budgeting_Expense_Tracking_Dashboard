@@ -39,7 +39,7 @@ async function testConnection() {
     );
 
     // Test 2: List available tables (this will work even with RLS)
-    const { data: tables, error: tablesError } = await supabase
+    const { error: tablesError } = await supabase
       .from("categories")
       .select("id")
       .limit(1);

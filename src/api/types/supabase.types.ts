@@ -1,6 +1,6 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+// This file extends the Supabase types
 
-declare module '@supabase/supabase-js' {
+declare module "@supabase/supabase-js" {
   interface Database {
     public: {
       Functions: {

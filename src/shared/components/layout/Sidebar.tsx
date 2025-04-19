@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Settings,
@@ -9,6 +10,8 @@ import {
   LineChart,
   Goal,
   Clock,
+  DollarSign,
+  BarChart4,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -24,48 +27,79 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
 }) => {
+  const navigate = useNavigate();
+
   const menuItems = [
     {
-      title: "Overview",
+      title: "Dashboard",
       icon: LayoutDashboard,
+      path: "/dashboard",
+      view: "dashboard" as const,
+    },
+    {
+      title: "Expenses",
+      icon: Wallet,
+      path: "/expenses",
+      view: "dashboard" as const,
+    },
+    {
+      title: "Income",
+      icon: DollarSign,
+      path: "/income",
+      view: "dashboard" as const,
+    },
+    {
+      title: "Budgets",
+      icon: BarChart4,
+      path: "/budgets",
       view: "dashboard" as const,
     },
     {
       title: "Categories",
       icon: PieChart,
-      view: "dashboard" as const,
-    },
-    {
-      title: "Transactions",
-      icon: Wallet,
+      path: "/categories",
       view: "dashboard" as const,
     },
     {
       title: "Bills & Subscriptions",
       icon: CreditCard,
+      path: "/bills-subscriptions",
       view: "dashboard" as const,
     },
     {
       title: "Analytics",
       icon: LineChart,
+      path: "/analytics",
       view: "dashboard" as const,
     },
     {
       title: "Goals",
       icon: Goal,
+      path: "/goals",
       view: "dashboard" as const,
     },
     {
       title: "History",
       icon: Clock,
+      path: "/history",
       view: "dashboard" as const,
     },
     {
       title: "Settings",
       icon: Settings,
+      path: "/settings",
       view: "settings" as const,
     },
   ];
+
+  const handleNavigation = (item: (typeof menuItems)[0]) => {
+    // Navigate to the path
+    navigate(item.path);
+    // Also update the current view for highlighting
+    onNavigate(item.view);
+    // Close sidebar on mobile
+    onClose();
+  };
 
   return (
     <>
@@ -101,23 +135,22 @@ const Sidebar: React.FC<SidebarProps> = ({
             {menuItems.map((item) => (
               <button
                 key={item.title}
-                onClick={() => {
-                  onNavigate(item.view);
-                  onClose();
-                }}
+                onClick={() => handleNavigation(item)}
                 className={`group w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  currentView === item.view && item.title === "Overview"
+                  currentView === item.view && item.title === "Dashboard"
                     ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-200"
-                    : currentView === item.view
+                    : currentView === item.view &&
+                      item.path === window.location.pathname
                     ? "bg-indigo-50 text-indigo-700"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`}
               >
                 <item.icon
                   className={`h-5 w-5 ${
-                    currentView === item.view && item.title === "Overview"
+                    currentView === item.view && item.title === "Dashboard"
                       ? "text-white"
-                      : currentView === item.view
+                      : currentView === item.view &&
+                        item.path === window.location.pathname
                       ? "text-indigo-600"
                       : "text-gray-400 group-hover:text-gray-500"
                   }`}

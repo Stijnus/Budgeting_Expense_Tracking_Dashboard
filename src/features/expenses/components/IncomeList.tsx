@@ -1,11 +1,17 @@
 // src/features/expenses/components/IncomeList.tsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../../api/supabase/client';
-import type { Database } from '../../../api/types/database.types';
-import { Loader2, AlertTriangle, Trash2, Pencil, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "../../../api/supabase/client";
+import type { Database } from "../../../api/types/database.types";
+import {
+  Loader2,
+  AlertTriangle,
+  Trash2,
+  Pencil,
+  DollarSign,
+} from "lucide-react";
 // We might need an EditIncomeModal later, similar to EditExpenseModal
 
-type Income = Database['public']['Tables']['incomes']['Row'];
+type Income = Database["public"]["Tables"]["transactions"]["Row"];
 
 interface IncomeListProps {
   // Add props if needed, e.g., refetch trigger from parent
@@ -14,7 +20,7 @@ interface IncomeListProps {
 
 // Helper to format currency
 const formatCurrency = (value: number): string => {
-    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  return value.toLocaleString("en-US", { style: "currency", currency: "USD" });
 };
 
 export default function IncomeList({ triggerRefetch }: IncomeListProps) {
@@ -30,23 +36,27 @@ export default function IncomeList({ triggerRefetch }: IncomeListProps) {
     setLoading(true);
     setError(null);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session?.user) throw sessionError || new Error('User not logged in');
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session?.user)
+        throw sessionError || new Error("User not logged in");
       const userId = session.user.id;
 
       const { data, error: fetchError } = await supabase
-        .from('incomes')
-        .select('*')
-        .eq('user_id', userId)
-        .order('income_date', { ascending: false })
-        .order('created_at', { ascending: false });
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("type", "INCOME")
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
 
       setIncomes(data || []);
-
     } catch (err: any) {
-      console.error('Error fetching income:', err);
+      console.error("Error fetching income:", err);
       setError(`Failed to load income: ${err.message}`);
       setIncomes([]);
     } finally {
@@ -59,21 +69,23 @@ export default function IncomeList({ triggerRefetch }: IncomeListProps) {
   }, [fetchIncomes, triggerRefetch]); // Refetch when triggerRefetch changes
 
   const handleDelete = async (incomeId: string) => {
-    if (!window.confirm('Are you sure you want to delete this income record?')) {
+    if (
+      !window.confirm("Are you sure you want to delete this income record?")
+    ) {
       return;
     }
     setDeletingId(incomeId);
     setError(null);
     try {
       const { error: deleteError } = await supabase
-        .from('incomes')
+        .from("transactions")
         .delete()
-        .eq('id', incomeId);
+        .eq("id", incomeId);
       if (deleteError) throw deleteError;
       // Refetch list after delete
       fetchIncomes();
     } catch (error: any) {
-      console.error('Error deleting income:', error);
+      console.error("Error deleting income:", error);
       setError(`Failed to delete income: ${error.message}`);
     } finally {
       setDeletingId(null);
@@ -82,7 +94,9 @@ export default function IncomeList({ triggerRefetch }: IncomeListProps) {
 
   // Placeholder for edit functionality
   const handleEditClick = (income: Income) => {
-    alert(`Edit functionality for income ID: ${income.id} not implemented yet.`);
+    alert(
+      `Edit functionality for income ID: ${income.id} not implemented yet.`
+    );
     // setEditingIncome(income);
     // setIsEditModalOpen(true);
   };
@@ -95,11 +109,13 @@ export default function IncomeList({ triggerRefetch }: IncomeListProps) {
 
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm flex items-center gap-2">
-            <AlertTriangle size={16} /> {error}
+          <AlertTriangle size={16} /> {error}
         </div>
       )}
 
-      <div className="min-h-[150px]"> {/* Min height for loading/empty states */}
+      <div className="min-h-[150px]">
+        {" "}
+        {/* Min height for loading/empty states */}
         {loading ? (
           <div className="flex items-center justify-center py-10 text-gray-500">
             <Loader2 className="animate-spin h-6 w-6 mr-3" /> Loading income...
@@ -108,24 +124,58 @@ export default function IncomeList({ triggerRefetch }: IncomeListProps) {
           <div className="text-center py-6 px-4 text-gray-500">
             <DollarSign className="mx-auto h-10 w-10 text-gray-400" />
             <p className="mt-2 text-sm">No income recorded yet.</p>
-            <p className="text-xs">Use the form above to add your first income entry.</p>
+            <p className="text-xs">
+              Use the form above to add your first income entry.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Date
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Description
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Amount
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {incomes.map((income) => (
-                  <tr key={income.id} className={`hover:bg-gray-50 ${deletingId === income.id ? 'opacity-50' : ''}`}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{new Date(income.income_date).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate" title={income.description || ''}>{income.description || '-'}</td>
+                  <tr
+                    key={income.id}
+                    className={`hover:bg-gray-50 ${
+                      deletingId === income.id ? "opacity-50" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(income.date).toLocaleDateString()}
+                    </td>
+                    <td
+                      className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate"
+                      title={income.description || ""}
+                    >
+                      {income.description || "-"}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium">
                       {formatCurrency(income.amount)}
                     </td>

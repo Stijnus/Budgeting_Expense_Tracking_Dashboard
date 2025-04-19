@@ -5,7 +5,13 @@ import { ProtectedRoute } from "./features/auth/components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import DashboardPage from "./pages/DashboardPage";
 import ExpensesPage from "./pages/ExpensesPage";
+import IncomePage from "./pages/IncomePage";
 import BudgetsPage from "./pages/BudgetsPage";
+import CategoriesPage from "./pages/CategoriesPage";
+import BillsSubscriptionsPage from "./pages/BillsSubscriptionsPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import GoalsPage from "./pages/GoalsPage";
+import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
@@ -41,10 +47,58 @@ function App() {
               }
             />
             <Route
+              path="/income"
+              element={
+                <ProtectedRoute>
+                  <IncomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/budgets"
               element={
                 <ProtectedRoute>
                   <BudgetsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/categories"
+              element={
+                <ProtectedRoute>
+                  <CategoriesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bills-subscriptions"
+              element={
+                <ProtectedRoute>
+                  <BillsSubscriptionsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/goals"
+              element={
+                <ProtectedRoute>
+                  <GoalsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <ProtectedRoute>
+                  <HistoryPage />
                 </ProtectedRoute>
               }
             />

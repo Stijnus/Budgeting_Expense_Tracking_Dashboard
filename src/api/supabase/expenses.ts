@@ -1,7 +1,7 @@
 import { supabase } from "./client";
 import type { Database } from "../types/database.types";
 
-type Expense = Database["public"]["Tables"]["transactions"]["Row"];
+// We use these types for function parameters and returns
 type ExpenseInsert = Database["public"]["Tables"]["transactions"]["Insert"];
 type ExpenseUpdate = Database["public"]["Tables"]["transactions"]["Update"];
 
@@ -9,13 +9,15 @@ type ExpenseUpdate = Database["public"]["Tables"]["transactions"]["Update"];
 export const getExpenses = async (userId: string) => {
   const { data, error } = await supabase
     .from("transactions")
-    .select(`
+    .select(
+      `
       *,
       categories (
         name,
         color
       )
-    `)
+    `
+    )
     .eq("user_id", userId)
     .eq("type", "EXPENSE")
     .order("date", { ascending: false });
@@ -38,13 +40,15 @@ export const getFilteredExpenses = async (
 ) => {
   let query = supabase
     .from("transactions")
-    .select(`
+    .select(
+      `
       *,
       categories (
         name,
         color
       )
-    `)
+    `
+    )
     .eq("user_id", userId)
     .eq("type", "EXPENSE");
 
@@ -52,7 +56,8 @@ export const getFilteredExpenses = async (
   if (filters.startDate) query = query.gte("date", filters.startDate);
   if (filters.endDate) query = query.lte("date", filters.endDate);
   if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
-  if (filters.searchTerm) query = query.ilike("description", `%${filters.searchTerm}%`);
+  if (filters.searchTerm)
+    query = query.ilike("description", `%${filters.searchTerm}%`);
 
   // Apply sorting
   const sortColumn = filters.sortColumn || "date";
@@ -89,10 +94,7 @@ export const updateExpense = async (id: string, updates: ExpenseUpdate) => {
 
 // Delete an expense
 export const deleteExpense = async (id: string) => {
-  const { error } = await supabase
-    .from("transactions")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from("transactions").delete().eq("id", id);
 
   if (error) throw error;
   return true;
