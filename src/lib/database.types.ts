@@ -4,310 +4,324 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type Database = {
   public: {
     Tables: {
       budgets: {
         Row: {
-          amount: number;
-          category_id: string | null;
-          created_at: string;
-          end_date: string;
-          id: string;
-          start_date: string;
-          updated_at: string;
-          user_id: string;
-        };
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          currency: Database["public"]["Enums"]["currency_code"]
+          end_date: string
+          id: string
+          start_date: string
+          updated_at: string | null
+          user_id: string | null
+        }
         Insert: {
-          amount: number;
-          category_id?: string | null;
-          created_at?: string;
-          end_date: string;
-          id?: string;
-          start_date: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"]
+          end_date: string
+          id?: string
+          start_date: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
         Update: {
-          amount?: number;
-          category_id?: string | null;
-          created_at?: string;
-          end_date?: string;
-          id?: string;
-          start_date?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"]
+          end_date?: string
+          id?: string
+          start_date?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "budgets_category_id_fkey";
-            columns: ["category_id"];
-            isOneToOne: false;
-            referencedRelation: "categories";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
+            foreignKeyName: "budgets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
-          created_at: string;
-          id: string;
-          name: string;
-          user_id: string;
-        };
+          color: string
+          created_at: string | null
+          icon: string | null
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string | null
+        }
         Insert: {
-          created_at?: string;
-          id?: string;
-          name: string;
-          user_id: string;
-        };
+          color: string
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
         Update: {
-          created_at?: string;
-          id?: string;
-          name?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      expense_tags: {
+          color?: string
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
         Row: {
-          created_at: string;
-          expense_id: string;
-          tag_id: string;
-        };
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          currency: Database["public"]["Enums"]["currency_code"]
+          date: string
+          description: string | null
+          id: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string | null
+          user_id: string | null
+        }
         Insert: {
-          created_at?: string;
-          expense_id: string;
-          tag_id: string;
-        };
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"]
+          date?: string
+          description?: string | null
+          id?: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string | null
+        }
         Update: {
-          created_at?: string;
-          expense_id?: string;
-          tag_id?: string;
-        };
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          currency?: Database["public"]["Enums"]["currency_code"]
+          date?: string
+          description?: string | null
+          id?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "expense_tags_expense_id_fkey";
-            columns: ["expense_id"];
-            isOneToOne: false;
-            referencedRelation: "expenses";
-            referencedColumns: ["id"];
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "expense_tags_tag_id_fkey";
-            columns: ["tag_id"];
-            isOneToOne: false;
-            referencedRelation: "tags";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      expenses: {
+        ]
+      }
+      user_profiles: {
         Row: {
-          amount: number;
-          category_id: string | null;
-          created_at: string;
-          description: string | null;
-          expense_date: string;
-          id: string;
-          type: string;
-          user_id: string;
-        };
+          avatar_url: string | null
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone_number: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
         Insert: {
-          amount: number;
-          category_id?: string | null;
-          created_at?: string;
-          description?: string | null;
-          expense_date?: string;
-          id?: string;
-          type?: string;
-          user_id: string;
-        };
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone_number?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
         Update: {
-          amount?: number;
-          category_id?: string | null;
-          created_at?: string;
-          description?: string | null;
-          expense_date?: string;
-          id?: string;
-          type?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "expenses_category_id_fkey";
-            columns: ["category_id"];
-            isOneToOne: false;
-            referencedRelation: "categories";
-            referencedColumns: ["id"];
-          }
-        ];
-      };
-      incomes: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone_number?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
         Row: {
-          amount: number;
-          created_at: string;
-          description: string | null;
-          id: string;
-          income_date: string;
-          updated_at: string;
-          user_id: string;
-        };
+          created_at: string | null
+          default_currency: Database["public"]["Enums"]["currency_code"]
+          notification_enabled: boolean | null
+          theme: string | null
+          updated_at: string | null
+          user_id: string
+        }
         Insert: {
-          amount: number;
-          created_at?: string;
-          description?: string | null;
-          id?: string;
-          income_date: string;
-          updated_at?: string;
-          user_id: string;
-        };
+          created_at?: string | null
+          default_currency?: Database["public"]["Enums"]["currency_code"]
+          notification_enabled?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
         Update: {
-          amount?: number;
-          created_at?: string;
-          description?: string | null;
-          id?: string;
-          income_date?: string;
-          updated_at?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-      tags: {
-        Row: {
-          created_at: string;
-          id: string;
-          name: string;
-          user_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          id?: string;
-          name: string;
-          user_id: string;
-        };
-        Update: {
-          created_at?: string;
-          id?: string;
-          name?: string;
-          user_id?: string;
-        };
-        Relationships: [];
-      };
-    };
+          created_at?: string | null
+          default_currency?: Database["public"]["Enums"]["currency_code"]
+          notification_enabled?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
-      delete_user: {
-        Args: Record<PropertyKey, never>;
-        Returns: undefined;
-      };
-    };
+      [_ in never]: never
+    }
     Enums: {
-      [_ in never]: never;
-    };
+      currency_code: "USD" | "EUR" | "GBP"
+      transaction_type: "EXPENSE" | "INCOME"
+      user_role: "user" | "admin" | "superuser"
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-};
+      [_ in never]: never
+    }
+  }
+}
 
-type PublicSchema = Database[Extract<keyof Database, "public">];
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R;
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-      PublicSchema["Views"])
-  ? (PublicSchema["Tables"] &
-      PublicSchema["Views"])[PublicTableNameOrOptions] extends {
-      Row: infer R;
-    }
-    ? R
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
     : never
-  : never;
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I;
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-  ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-      Insert: infer I;
-    }
-    ? I
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
     : never
-  : never;
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U;
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-  ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-      Update: infer U;
-    }
-    ? U
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
     : never
-  : never;
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-    : never = never
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-  ? PublicSchema["Enums"][PublicEnumNameOrOptions]
-  : never;
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database;
+    schema: keyof Database
   }
     ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-  ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never;
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      currency_code: ["USD", "EUR", "GBP"],
+      transaction_type: ["EXPENSE", "INCOME"],
+      user_role: ["user", "admin", "superuser"],
+    },
+  },
+} as const

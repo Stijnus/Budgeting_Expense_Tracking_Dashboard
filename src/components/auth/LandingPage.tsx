@@ -1,80 +1,60 @@
-import React, { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Mail,
-  Lock,
-  ChevronRight,
   DollarSign,
   Clock,
   Bell,
-  Wallet,
   User,
+  Mail,
+  Lock,
   Phone,
+  ChevronRight,
 } from "lucide-react";
-import type { UserProfileUpdate } from "../types/user";
+import { useAuth } from "../../hooks/useAuth";
 
-export default function Auth() {
+export function LandingPage() {
+  const navigate = useNavigate();
+  const [isSignUp, setIsSignUp] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const { signIn, signUp, resetPassword } = useAuth();
+
+  // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [isSignUp, setIsSignUp] = useState(true); // Toggle between Sign Up and Sign In
-  const [message, setMessage] = useState<string | null>(null); // For user feedback
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleAuth = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setMessage(null); // Clear previous messages
-
-    const credentials = { email, password };
+    setMessage(null);
 
     try {
-      let error = null;
       if (isSignUp) {
-        // First, sign up the user
-        const { data: authData, error: signUpError } =
-          await supabase.auth.signUp(credentials);
-        error = signUpError;
-
-        if (!error && authData.user) {
-          // Then create their profile
-          const profile: UserProfileUpdate = {
+        const { error } = await signUp(email, password, {
+          data: {
             first_name: firstName,
             last_name: lastName,
-            phone_number: phoneNumber || undefined,
-          };
+          },
+          // Store phone number in metadata or user profile table instead
+        });
 
-          const { error: profileError } = await supabase
-            .from("user_profiles")
-            .insert([
-              {
-                id: authData.user.id,
-                ...profile,
-                role: "user", // Default role
-                email: email,
-              },
-            ]);
-
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
-            error = profileError;
-          }
-        }
-
-        if (!error) setMessage("Check your email for the confirmation link!");
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword(
-          credentials
+        if (error) throw error;
+        setMessage(
+          "Registration successful! Please check your email for confirmation."
         );
-        error = signInError;
-        // No message needed on successful sign-in, App.tsx will handle redirect/UI change
-      }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) throw error;
 
-      if (error) throw error;
-    } catch (error: unknown) {
+        // Successfully logged in, navigate to dashboard
+        console.log("Sign in successful, navigating to dashboard");
+        navigate("/dashboard");
+      }
+    } catch (error) {
       console.error("Authentication error:", error);
       setMessage(
         `Error: ${
@@ -86,20 +66,16 @@ export default function Auth() {
     }
   };
 
-  const handleForgotPassword = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-    event.preventDefault();
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setMessage(null);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
-      });
+      const { error } = await resetPassword(email);
       if (error) throw error;
-      setMessage("Check your email for the password reset link!");
-    } catch (error: unknown) {
+      setMessage("Password reset instructions sent to your email.");
+    } catch (error) {
       console.error("Password reset error:", error);
       setMessage(
         `Error: ${
@@ -114,8 +90,9 @@ export default function Auth() {
   const toggleAuthMode = () => {
     setIsSignUp(!isSignUp);
     setShowForgotPassword(false);
-    setMessage(null); // Clear messages when switching modes
-    setEmail(""); // Clear fields
+    setMessage(null);
+    // Reset form fields
+    setEmail("");
     setPassword("");
     setFirstName("");
     setLastName("");
@@ -129,7 +106,7 @@ export default function Auth() {
           {/* Left Column - Landing Page Content */}
           <div className="space-y-8">
             <div className="flex items-center gap-2">
-              <Wallet className="h-8 w-8 text-indigo-600" />
+              <DollarSign className="h-8 w-8 text-indigo-600" />
               <h1 className="text-2xl font-bold text-gray-900">
                 Budget Tracker
               </h1>

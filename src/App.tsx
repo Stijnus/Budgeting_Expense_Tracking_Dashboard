@@ -1,145 +1,30 @@
-import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "./lib/supabaseClient";
-import Auth from "./components/Auth";
-import Categories from "./components/Categories";
-import ExpenseForm from "./components/ExpenseForm";
-import ExpenseList from "./components/ExpenseList";
-import CategoryPieChart from "./components/CategoryPieChart";
-import SpendingTrendChart from "./components/SpendingTrendChart";
-import BudgetManager from "./components/BudgetManager";
-import IncomeForm from "./components/IncomeForm";
-import IncomeList from "./components/IncomeList";
-import MonthlyReport from "./components/MonthlyReport";
-import SettingsPage from "./pages/SettingsPage";
-import AppLayout from "./components/layout/AppLayout";
-import type { Session } from "@supabase/supabase-js";
-import { Loader2 } from "lucide-react";
-import { SettingsProvider } from "./contexts/SettingsContext";
-
-type View = "dashboard" | "settings";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { SignIn } from "./components/auth/SignIn";
+import { SignUp } from "./components/auth/SignUp";
+import { LandingPage } from "./components/auth/LandingPage";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { Dashboard } from "./components/Dashboard";
 
 function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<View>("dashboard");
-
-  // Refs for dashboard components
-  const refetchExpensesRef = useRef<(() => void) | null>(null);
-  const refetchPieChartRef = useRef<(() => void) | null>(null);
-  const refetchTrendChartRef = useRef<(() => void) | null>(null);
-  const [incomeListTrigger, setIncomeListTrigger] = useState(0);
-
-  useEffect(() => {
-    setLoading(true);
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        setSession(session);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error getting session:", error);
-        setLoading(false);
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (!session) {
-        setCurrentView("dashboard");
-      }
-      setLoading(false);
-    });
-
-    return () => subscription?.unsubscribe();
-  }, []);
-
-  const handleNavigate = (view: View) => {
-    setCurrentView(view);
-  };
-
-  const handleExpenseAddedOrUpdated = () => {
-    if (refetchExpensesRef.current) refetchExpensesRef.current();
-    if (refetchPieChartRef.current) refetchPieChartRef.current();
-    if (refetchTrendChartRef.current) refetchTrendChartRef.current();
-  };
-
-  const handleIncomeAddedOrUpdated = () => {
-    setIncomeListTrigger((prev) => prev + 1);
-    if (refetchTrendChartRef.current) refetchTrendChartRef.current();
-  };
-
-  if (loading && session === null) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="flex flex-col items-center text-gray-600">
-          <Loader2 className="animate-spin h-12 w-12 mb-4" />
-          <p>Loading Application...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session) {
-    return <Auth />;
-  }
-
   return (
-    <SettingsProvider>
-      <AppLayout
-        session={session}
-        currentView={currentView}
-        onNavigate={handleNavigate}
-        loading={loading}
-      >
-        {loading && (
-          <div className="p-8 text-center text-gray-500">
-            <Loader2 className="animate-spin h-8 w-8 inline-block" />
-            <p>Loading...</p>
-          </div>
-        )}
-
-        {!loading && currentView === "dashboard" && (
-          <div className="p-4 sm:p-8">
-            <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-8">
-                <Categories />
-                <BudgetManager />
-              </div>
-              <div className="lg:col-span-1 space-y-8">
-                <IncomeForm onIncomeAdded={handleIncomeAddedOrUpdated} />
-                <IncomeList triggerRefetch={incomeListTrigger} />
-                <ExpenseForm onExpenseAdded={handleExpenseAddedOrUpdated} />
-                <MonthlyReport />
-              </div>
-              <div className="lg:col-span-1 space-y-8">
-                <ExpenseList
-                  setRefetch={(refetchFn) => {
-                    refetchExpensesRef.current = refetchFn;
-                  }}
-                  onExpenseUpdated={handleExpenseAddedOrUpdated}
-                />
-                <div className="grid grid-cols-1 gap-8">
-                  <CategoryPieChart
-                    setRefetch={(refetchFn) => {
-                      refetchPieChartRef.current = refetchFn;
-                    }}
-                  />
-                  <SpendingTrendChart
-                    setRefetch={(refetchFn) => {
-                      refetchTrendChartRef.current = refetchFn;
-                    }}
-                  />
-                </div>
-              </div>
-            </main>
-          </div>
-        )}
-
-        {!loading && currentView === "settings" && <SettingsPage />}
-      </AppLayout>
-    </SettingsProvider>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 

@@ -1,100 +1,144 @@
 import React from "react";
-import { supabase } from "../../lib/supabaseClient";
-import type { Session } from "@supabase/supabase-js";
-import { Loader2, LogOut, Menu, Wallet, User } from "lucide-react"; // Removed LayoutDashboard, Settings
+import {
+  Menu,
+  Settings,
+  LogOut,
+  User as UserIcon,
+  Loader2,
+  DollarSign,
+  Bell,
+  Search,
+} from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { useAuth } from "../../hooks/useAuth";
 
 interface NavbarProps {
-  session: Session;
+  user: User;
+  currentView: "dashboard" | "settings";
   onNavigate: (view: "dashboard" | "settings") => void;
   loading: boolean;
-  onToggleSidebar?: () => void;
+  onToggleSidebar: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
-  session,
+  user,
+  currentView,
   onNavigate,
   loading,
   onToggleSidebar,
 }) => {
-  const handleLogout = async () => {
-    // Loading state is managed in App.tsx via session change
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await signOut();
     } catch (error) {
-      console.error("Error logging out:", error);
+      console.error("Error signing out:", error);
     }
   };
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-30">
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Left side: Mobile Menu Toggle & Title/Logo */}
+    <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
           <div className="flex items-center">
-            {/* Mobile menu button */}
-            {onToggleSidebar && (
-              <button
-                onClick={onToggleSidebar}
-                className="mr-2 p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden" // Hidden on large screens and up
-                aria-label="Toggle sidebar"
-              >
-                <Menu size={24} />
-              </button>
-            )}
-            {/* App Title/Logo */}
-            <div
-              className="flex-shrink-0 flex items-center gap-2 cursor-pointer"
-              onClick={() => onNavigate("dashboard")} // Navigate to dashboard on logo click
-              title="Go to Dashboard"
+            <button
+              type="button"
+              className="p-2 rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 md:hidden transition-all duration-200"
+              onClick={onToggleSidebar}
             >
-              <Wallet size={28} className="text-indigo-600" />{" "}
-              {/* Example Icon */}
-              <span className="text-xl font-bold text-gray-800 hidden sm:inline">
-                Budget Tracker
-              </span>
+              <span className="sr-only">Open sidebar</span>
+              <Menu className="h-6 w-6" />
+            </button>
+            <div className="flex-shrink-0 flex items-center">
+              <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 p-2 rounded-xl">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-800">
+                  Budget Tracker
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Center: Navigation Buttons REMOVED */}
-          {/* <div className="hidden lg:flex lg:items-center lg:space-x-4"> ... </div> */}
-
-          {/* Right side: User Info & Logout */}
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            {/* User Avatar and Info */}
-            <div className="hidden md:flex items-center space-x-3">
-              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                <User size={20} className="text-indigo-600" />
-              </div>
-              <div className="flex flex-col">
-                <span
-                  className="text-sm font-medium text-gray-900"
-                  title={session.user.email ?? "User"}
-                >
-                  {session.user.email?.split("@")[0] ?? "User"}
-                </span>
-                <span
-                  className="text-xs text-gray-500 truncate max-w-[150px]"
-                  title={session.user.email}
-                >
-                  {session.user.email}
-                </span>
+          <div className="flex items-center gap-6">
+            {/* Search Bar */}
+            <div className="hidden md:flex items-center">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search transactions..."
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white/50 transition-all duration-200"
+                />
               </div>
             </div>
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              disabled={loading}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center gap-1"
-              title="Logout"
-            >
-              {/* Show loader only if the main app loading state is true */}
-              {loading ? (
-                <Loader2 className="animate-spin h-4 w-4" />
-              ) : (
-                <LogOut size={16} />
-              )}
-              <span className="hidden sm:inline">Logout</span>
+
+            {/* Navigation Buttons */}
+            <div className="hidden md:flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => onNavigate("dashboard")}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  currentView === "dashboard"
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate("settings")}
+                className={`p-2 rounded-xl transition-all duration-200 ${
+                  currentView === "settings"
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Notifications */}
+            <button className="p-2 rounded-xl text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all duration-200 relative">
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
             </button>
+
+            {/* User Menu */}
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center">
+                  <UserIcon className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700">
+                    {user.email?.split("@")[0]}
+                  </span>
+                  <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={loading}
+                className="p-2 rounded-xl text-gray-500 hover:text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 transition-all duration-200"
+              >
+                <span className="sr-only">Sign out</span>
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <LogOut className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
