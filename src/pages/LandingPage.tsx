@@ -18,7 +18,7 @@ interface LandingPageProps {
 
 export default function LandingPage({ initialMode }: LandingPageProps) {
   const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(initialMode !== "signin");
+  const [isSignUp, setIsSignUp] = useState(initialMode === "signup");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -32,6 +32,15 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
       setIsSignUp(true);
     }
   }, [initialMode]);
+
+  // Redirect to dashboard if user is already authenticated
+  const { user, loading: authLoading } = useAuth();
+  useEffect(() => {
+    if (user && !authLoading) {
+      console.log("User already authenticated, redirecting to dashboard");
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
 
   // Form states
   const [email, setEmail] = useState("");

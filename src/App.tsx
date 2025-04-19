@@ -21,7 +21,7 @@ function App() {
       <AuthProvider>
         <SettingsProvider>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<LandingPage initialMode="signin" />} />
             <Route
               path="/signin"
               element={<LandingPage initialMode="signin" />}

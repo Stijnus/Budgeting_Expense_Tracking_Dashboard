@@ -15,6 +15,7 @@ export interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  isUsingFallbackProfile: boolean;
   signIn: (
     email: string,
     password: string

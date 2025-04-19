@@ -8,6 +8,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUsingFallbackProfile, setIsUsingFallbackProfile] = useState(false);
 
   const createProfile = async (user: User) => {
     console.log("AuthProvider: Creating new user profile...");
@@ -72,18 +73,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(session.user);
           console.log("AuthProvider: Fetching user profile...");
           try {
-            let userProfile = await getUserProfile(session.user.id);
-            if (!userProfile) {
+            try {
+              let userProfile = await getUserProfile(session.user.id);
+
+              // Check if this is a fallback profile
+              const isFallback =
+                userProfile &&
+                !userProfile.created_at.includes("T") &&
+                new Date(userProfile.created_at).getTime() > Date.now() - 60000; // Created in the last minute
+
+              setIsUsingFallbackProfile(!!isFallback);
+
+              if (isFallback) {
+                console.log(
+                  "AuthProvider: Using fallback profile due to database issues"
+                );
+              }
+
+              if (!userProfile) {
+                console.log(
+                  "AuthProvider: No profile found, creating new profile..."
+                );
+                userProfile = await createProfile(session.user);
+                setIsUsingFallbackProfile(false);
+              }
+
               console.log(
-                "AuthProvider: No profile found, creating new profile..."
+                "AuthProvider: Got user profile:",
+                userProfile ? "Profile exists" : "No profile"
               );
-              userProfile = await createProfile(session.user);
+              setProfile(userProfile);
+            } catch (fetchError) {
+              console.error(
+                "AuthProvider: Error fetching profile:",
+                fetchError
+              );
+
+              // Check if the error message indicates a fallback profile was created
+              if (
+                fetchError instanceof Error &&
+                fetchError.message.includes("fallback profile")
+              ) {
+                // Extract the fallback profile from the error message if possible
+                try {
+                  const errorJson = JSON.parse(
+                    fetchError.message.split("fallback profile:")[1]
+                  );
+                  if (errorJson && errorJson.id === session.user.id) {
+                    setProfile(errorJson);
+                    setIsUsingFallbackProfile(true);
+                    console.log(
+                      "AuthProvider: Using fallback profile from error"
+                    );
+                  } else {
+                    // If we can't get the profile, the session might be invalid
+                    clearSession();
+                  }
+                } catch (parseError) {
+                  // If we can't parse the error, the session might be invalid
+                  clearSession();
+                }
+              } else {
+                // If we can't get the profile, the session might be invalid
+                clearSession();
+              }
             }
-            console.log(
-              "AuthProvider: Got user profile:",
-              userProfile ? "Profile exists" : "No profile"
-            );
-            setProfile(userProfile);
           } catch (profileError) {
             console.error(
               "AuthProvider: Error fetching initial profile:",
@@ -143,16 +197,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log(
             "AuthProvider: Fetching user profile after auth change..."
           );
-          const profile = await getUserProfile(session.user.id);
-          console.log(
-            "AuthProvider: Got user profile after auth change:",
-            profile ? "Profile exists" : "No profile"
-          );
-          setProfile(profile);
+          try {
+            const userProfile = await getUserProfile(session.user.id);
+            console.log(
+              "AuthProvider: Got user profile after auth change:",
+              userProfile ? "Profile exists" : "No profile"
+            );
+
+            // Check if this is a fallback profile
+            const isFallback =
+              userProfile &&
+              !userProfile.created_at.includes("T") &&
+              new Date(userProfile.created_at).getTime() > Date.now() - 60000; // Created in the last minute
+
+            setIsUsingFallbackProfile(!!isFallback);
+
+            if (isFallback) {
+              console.log(
+                "AuthProvider: Using fallback profile due to database issues"
+              );
+            }
+
+            setProfile(userProfile);
+          } catch (fetchError) {
+            console.error("AuthProvider: Error fetching profile:", fetchError);
+
+            // Check if the error message indicates a fallback profile was created
+            if (
+              fetchError instanceof Error &&
+              fetchError.message.includes("fallback profile")
+            ) {
+              // Extract the fallback profile from the error message if possible
+              try {
+                const errorJson = JSON.parse(
+                  fetchError.message.split("fallback profile:")[1]
+                );
+                if (errorJson && errorJson.id === session.user.id) {
+                  setProfile(errorJson);
+                  setIsUsingFallbackProfile(true);
+                  console.log(
+                    "AuthProvider: Using fallback profile from error"
+                  );
+                }
+              } catch (parseError) {
+                // If we can't parse the error, just set profile to null
+                setProfile(null);
+                setIsUsingFallbackProfile(false);
+              }
+            } else {
+              // Don't clear session on profile fetch error, just set profile to null
+              setProfile(null);
+              setIsUsingFallbackProfile(false);
+            }
+          }
         } catch (error) {
           console.error("AuthProvider: Error fetching user profile:", error);
           // Don't clear session on profile fetch error, just set profile to null
           setProfile(null);
+          setIsUsingFallbackProfile(false);
         } finally {
           setLoading(false);
         }
@@ -190,26 +292,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         try {
           console.log("AuthProvider: Fetching user profile...");
-          const userProfile = await getUserProfile(data.user.id);
-          console.log(
-            "AuthProvider: Profile fetch result:",
-            userProfile ? "Success" : "No profile found"
-          );
-          if (!userProfile) {
-            console.log("AuthProvider: Creating new profile...");
-            try {
-              const newProfile = await createProfile(data.user);
-              setProfile(newProfile);
-            } catch (createError) {
-              console.error(
-                "AuthProvider: Error creating profile:",
-                createError
+          try {
+            const userProfile = await getUserProfile(data.user.id);
+            console.log(
+              "AuthProvider: Profile fetch result:",
+              userProfile ? "Success" : "No profile found"
+            );
+
+            // Check if this is a fallback profile
+            const isFallback =
+              userProfile &&
+              !userProfile.created_at.includes("T") &&
+              new Date(userProfile.created_at).getTime() > Date.now() - 60000; // Created in the last minute
+
+            setIsUsingFallbackProfile(!!isFallback);
+
+            if (isFallback) {
+              console.log(
+                "AuthProvider: Using fallback profile due to database issues"
               );
-              // Don't block sign in on profile creation error
-              setProfile(null);
             }
-          } else {
-            setProfile(userProfile);
+
+            if (!userProfile) {
+              console.log("AuthProvider: Creating new profile...");
+              try {
+                const newProfile = await createProfile(data.user);
+                setProfile(newProfile);
+                setIsUsingFallbackProfile(false);
+              } catch (createError) {
+                console.error(
+                  "AuthProvider: Error creating profile:",
+                  createError
+                );
+                // Don't block sign in on profile creation error
+                setProfile(null);
+                setIsUsingFallbackProfile(false);
+              }
+            } else {
+              setProfile(userProfile);
+            }
+          } catch (fetchError) {
+            console.error("AuthProvider: Error fetching profile:", fetchError);
+
+            // Check if the error message indicates a fallback profile was created
+            if (
+              fetchError instanceof Error &&
+              fetchError.message.includes("fallback profile")
+            ) {
+              // Extract the fallback profile from the error message if possible
+              try {
+                const errorJson = JSON.parse(
+                  fetchError.message.split("fallback profile:")[1]
+                );
+                if (errorJson && errorJson.id === data.user.id) {
+                  setProfile(errorJson);
+                  setIsUsingFallbackProfile(true);
+                  console.log(
+                    "AuthProvider: Using fallback profile from error"
+                  );
+                }
+              } catch (parseError) {
+                // If we can't parse the error, just set profile to null
+                setProfile(null);
+                setIsUsingFallbackProfile(false);
+              }
+            } else {
+              // Don't block sign in on profile fetch error
+              setProfile(null);
+              setIsUsingFallbackProfile(false);
+            }
           }
         } catch (profileError) {
           console.error(
@@ -266,6 +417,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear auth state from context
     setUser(null);
     setProfile(null);
+    setIsUsingFallbackProfile(false);
     // Clear storage
     localStorage.removeItem("supabase.auth.token");
     sessionStorage.removeItem("supabase.auth.token");
@@ -339,6 +491,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     profile,
     loading,
+    isUsingFallbackProfile,
     signIn,
     signUp,
     signOut,
@@ -351,6 +504,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasUser: !!user,
     hasProfile: !!profile,
     loading,
+    isUsingFallbackProfile,
   });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,13 +1,30 @@
 // src/features/budgets/components/CategoryPieChart.tsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { supabase } from '../../../api/supabase/client';
-import type { Database } from '../../../api/types/database.types';
-import { Loader2, AlertTriangle, PieChart as PieChartIcon } from 'lucide-react'; // Import icons
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { supabase } from "../../../api/supabase/client";
+import type { Database } from "../../../api/types/database.types";
+import { Loader2, AlertTriangle, PieChart as PieChartIcon } from "lucide-react"; // Import icons
 
-type Expense = Database['public']['Tables']['expenses']['Row'] & {
-  categories: { name: string } | null
-}
+type Expense = {
+  id: string;
+  user_id: string;
+  category_id: string | null;
+  amount: number;
+  currency: string;
+  description: string | null;
+  expense_date: string;
+  created_at: string;
+  updated_at: string;
+  category_name: string | null;
+  category_color: string | null;
+};
 
 interface ChartData {
   name: string;
@@ -15,13 +32,26 @@ interface ChartData {
 }
 
 // Define some colors for the pie chart slices
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658', '#a4de6c', '#d0ed57', '#ff7300'];
+const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#8884D8",
+  "#82ca9d",
+  "#ffc658",
+  "#a4de6c",
+  "#d0ed57",
+  "#ff7300",
+];
 
 interface CategoryPieChartProps {
   setRefetch?: (refetchFn: () => void) => void; // Prop to expose refetch function
 }
 
-export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) {
+export default function CategoryPieChart({
+  setRefetch,
+}: CategoryPieChartProps) {
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,16 +61,22 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
     setError(null);
     console.log("PieChart: Fetching data...");
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session?.user) throw sessionError || new Error('User not logged in');
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !session?.user)
+        throw sessionError || new Error("User not logged in");
 
       const { data: expenses, error: expensesError } = await supabase
-        .from('expenses')
-        .select(`
+        .from("expenses")
+        .select(
+          `
           amount,
-          categories ( name )
-        `)
-        .eq('user_id', session.user.id);
+          category_name
+        `
+        )
+        .eq("user_id", session.user.id);
 
       if (expensesError) throw expensesError;
 
@@ -49,9 +85,8 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
       } else {
         setChartData([]);
       }
-
     } catch (error: any) {
-      console.error('Error fetching expense data for chart:', error);
+      console.error("Error fetching expense data for chart:", error);
       setError(`Failed to load chart data: ${error.message}`);
       setChartData([]);
     } finally {
@@ -72,21 +107,29 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
     };
   }, [fetchExpenseData, setRefetch]);
 
-  const processChartData = (expenses: Pick<Expense, 'amount' | 'categories'>[]) => {
+  const processChartData = (
+    expenses: Pick<Expense, "amount" | "category_name">[]
+  ) => {
     const categoryTotals: { [key: string]: number } = {};
 
-    expenses.forEach(expense => {
-      const amount = typeof expense.amount === 'number' ? expense.amount : parseFloat(expense.amount || '0');
+    expenses.forEach((expense) => {
+      const amount =
+        typeof expense.amount === "number"
+          ? expense.amount
+          : parseFloat(expense.amount || "0");
       if (isNaN(amount)) return;
 
-      const categoryName = expense.categories?.name || 'Uncategorized';
-      categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + amount;
+      const categoryName = expense.category_name || "Uncategorized";
+      categoryTotals[categoryName] =
+        (categoryTotals[categoryName] || 0) + amount;
     });
 
-    const formattedData = Object.entries(categoryTotals).map(([name, value]) => ({
-      name,
-      value: parseFloat(value.toFixed(2)),
-    })).sort((a, b) => b.value - a.value); // Sort by value descending
+    const formattedData = Object.entries(categoryTotals)
+      .map(([name, value]) => ({
+        name,
+        value: parseFloat(value.toFixed(2)),
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by value descending
 
     setChartData(formattedData);
   };
@@ -95,7 +138,9 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const percentage = payload[0].percent ? (payload[0].percent * 100).toFixed(1) : 0;
+      const percentage = payload[0].percent
+        ? (payload[0].percent * 100).toFixed(1)
+        : 0;
       return (
         <div className="bg-white p-2 border border-gray-300 rounded shadow text-sm">
           <p className="font-semibold">{`${data.name}`}</p>
@@ -114,7 +159,10 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
       <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs mt-2 max-h-20 overflow-y-auto px-2">
         {payload.map((entry: any, index: number) => (
           <li key={`item-${index}`} className="flex items-center">
-            <span className="w-3 h-3 mr-1 inline-block" style={{ backgroundColor: entry.color }}></span>
+            <span
+              className="w-3 h-3 mr-1 inline-block"
+              style={{ backgroundColor: entry.color }}
+            ></span>
             <span>{entry.value}</span>
           </li>
         ))}
@@ -122,10 +170,11 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
     );
   };
 
-
   return (
     <div className="p-4 bg-white rounded-lg shadow h-96 flex flex-col">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800 flex-shrink-0">Expenses by Category</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-800 flex-shrink-0">
+        Expenses by Category
+      </h2>
       <div className="flex-grow flex items-center justify-center">
         {loading && (
           <div className="text-center text-gray-500">
@@ -142,9 +191,13 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
         )}
         {!loading && !error && chartData.length === 0 && (
           <div className="text-center text-gray-500 px-4">
-             <PieChartIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-             <h3 className="mt-2 text-sm font-medium text-gray-900">No Data Available</h3>
-             <p className="mt-1 text-sm">Add some expenses to see a breakdown by category.</p>
+            <PieChartIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No Data Available
+            </h3>
+            <p className="mt-1 text-sm">
+              Add some expenses to see a breakdown by category.
+            </p>
           </div>
         )}
         {!loading && !error && chartData.length > 0 && (
@@ -163,7 +216,11 @@ export default function CategoryPieChart({ setRefetch }: CategoryPieChartProps) 
                 paddingAngle={2}
               >
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke={COLORS[index % COLORS.length]} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={COLORS[index % COLORS.length]}
+                    stroke={COLORS[index % COLORS.length]}
+                  />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
