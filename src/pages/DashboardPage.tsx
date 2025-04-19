@@ -29,13 +29,33 @@ export default function DashboardPage() {
 
   // Function to fetch dashboard summary data
   const fetchDashboardData = async () => {
+    console.log("Dashboard: Starting data fetch...");
     setLoading(true);
+
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log("Dashboard: Fetch timeout reached, resetting loading state");
+      setLoading(false);
+    }, 15000); // 15 second timeout
+
     try {
+      console.log("Dashboard: Fetching user data...");
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
-      if (userError || !user) throw userError || new Error("User not found");
+
+      if (userError) {
+        console.error("Dashboard: User error:", userError);
+        throw userError;
+      }
+
+      if (!user) {
+        console.error("Dashboard: No user found");
+        throw new Error("User not found");
+      }
+
+      console.log("Dashboard: User found, fetching transactions...");
 
       // Get current month date range
       const now = new Date();
@@ -51,7 +71,25 @@ export default function DashboardPage() {
         .select("amount, type, date")
         .eq("user_id", user.id);
 
-      if (transactionsError) throw transactionsError;
+      if (transactionsError) {
+        console.error("Dashboard: Transaction fetch error:", transactionsError);
+        throw transactionsError;
+      }
+
+      if (!transactions) {
+        console.log("Dashboard: No transactions found, using empty array");
+        // Set default values and exit early
+        setTotalBalance(0);
+        setMonthlyExpenses(0);
+        setMonthlyIncome(0);
+        clearTimeout(timeoutId);
+        setLoading(false);
+        return;
+      }
+
+      console.log(
+        `Dashboard: Found ${transactions.length} transactions, calculating totals...`
+      );
 
       // Calculate total balance
       const balance = transactions.reduce((sum, transaction) => {
@@ -77,19 +115,47 @@ export default function DashboardPage() {
         .filter((t) => t.type === "INCOME")
         .reduce((sum, t) => sum + t.amount, 0);
 
+      console.log("Dashboard: Setting state with calculated values");
       setTotalBalance(balance);
       setMonthlyExpenses(expenses);
       setMonthlyIncome(income);
+      console.log("Dashboard: Data fetch complete");
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      console.error("Dashboard: Error fetching dashboard data:", error);
+      // Set default values on error
+      setTotalBalance(0);
+      setMonthlyExpenses(0);
+      setMonthlyIncome(0);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
+      console.log("Dashboard: Loading state set to false");
     }
   };
 
   // Fetch data on component mount
   useEffect(() => {
+    console.log("Dashboard: Component mounted, fetching data...");
     fetchDashboardData();
+
+    // Add a safety timeout to ensure loading state is reset
+    const safetyTimeout = setTimeout(() => {
+      // Use a function to get the current loading state to avoid dependency issues
+      setLoading((currentLoading) => {
+        if (currentLoading) {
+          console.log(
+            "Dashboard: Safety timeout triggered, resetting loading state"
+          );
+          return false;
+        }
+        return currentLoading;
+      });
+    }, 20000); // 20 second safety timeout
+
+    return () => {
+      clearTimeout(safetyTimeout);
+      console.log("Dashboard: Component unmounted, cleanup complete");
+    };
   }, []);
 
   // Function to refresh data
@@ -102,7 +168,10 @@ export default function DashboardPage() {
     refreshData();
   };
 
-  if (!user) return null;
+  if (!user) {
+    console.log("Dashboard: No user found, returning null");
+    return null;
+  }
 
   return (
     <AppLayout

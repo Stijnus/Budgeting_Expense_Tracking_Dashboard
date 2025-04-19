@@ -54,6 +54,13 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
     setLoading(true);
     setMessage(null);
 
+    // Set a timeout to prevent the login from getting stuck
+    const loginTimeout = setTimeout(() => {
+      console.log("Login timeout reached, resetting loading state");
+      setLoading(false);
+      setMessage("Login is taking longer than expected. Please try again.");
+    }, 15000); // 15 seconds timeout
+
     try {
       if (isSignUp) {
         const { error } = await signUp(email, password, {
@@ -82,6 +89,9 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
           throw error;
         }
 
+        // Clear the timeout since login was successful
+        clearTimeout(loginTimeout);
+
         // Successfully logged in, wait a bit for auth state to update
         console.log("Sign in successful, waiting for auth state to update...");
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -90,14 +100,32 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
       }
     } catch (error) {
       console.error("Authentication error:", error);
-      setMessage(
-        `Error: ${
-          error instanceof Error ? error.message : "An unknown error occurred"
-        }`
-      );
+      // Clear the timeout since we're handling the error
+      clearTimeout(loginTimeout);
+
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes("Invalid login credentials")) {
+          setMessage("Invalid email or password. Please try again.");
+        } else if (
+          error.message.includes("timeout") ||
+          error.message.includes("connection")
+        ) {
+          setMessage(
+            "Connection issue. Please check your internet and try again."
+          );
+        } else if (error.message.includes("profile")) {
+          setMessage("Issue with user profile. Please contact support.");
+        } else {
+          setMessage(`Error: ${error.message}`);
+        }
+      } else {
+        setMessage("An unknown error occurred. Please try again.");
+      }
     } finally {
       console.log("Auth process complete, setting loading to false");
       setLoading(false);
+      clearTimeout(loginTimeout); // Ensure timeout is cleared in all cases
     }
   };
 
