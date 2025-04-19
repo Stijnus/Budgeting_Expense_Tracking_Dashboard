@@ -72,6 +72,7 @@ A modern web application that helps users track and manage their personal expens
   - Custom hooks
   - Context API for state management
   - Type-safe development
+  - Feature-based folder structure
 
 - **Styling & UI**
   - Tailwind CSS for styling
@@ -142,6 +143,41 @@ A modern web application that helps users track and manage their personal expens
   - Cascading deletions
   - Grace period
 
+## 📂 Project Structure
+
+The project follows a feature-based organization pattern for better maintainability and scalability:
+
+```
+src/
+├── api/                  # API layer
+│   ├── supabase/         # Supabase client and API functions
+│   └── types/            # API-related type definitions
+├── features/             # Feature modules
+│   ├── auth/             # Authentication feature
+│   │   └── components/   # Auth-related components
+│   ├── budgets/          # Budget management feature
+│   │   └── components/   # Budget-related components
+│   ├── dashboard/        # Dashboard feature
+│   │   └── components/   # Dashboard-related components
+│   └── expenses/         # Expense tracking feature
+│       └── components/   # Expense-related components
+├── pages/                # Page components
+├── shared/               # Shared utilities and components
+│   └── components/       # Shared UI components
+│       └── layout/       # Layout components
+└── state/                # Global state management
+    ├── auth/             # Auth-related state
+    └── settings/         # Settings-related state
+```
+
+This structure provides several benefits:
+
+- Clear separation of concerns
+- Better code organization by feature
+- Improved developer experience
+- Easier maintenance and scalability
+- Better reusability of components
+
 ## 🚀 Getting Started
 
 1. **Clone & Setup**:
@@ -162,9 +198,9 @@ A modern web application that helps users track and manage their personal expens
    - Create `.env` file
    - Add required variables:
      ```env
-     SUPABASE_URL=your_supabase_project_url
-     SUPABASE_ANON_KEY=your_supabase_anon_key
-     SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+     VITE_SUPABASE_URL=your_supabase_project_url
+     VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+     VITE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
      ```
 
 4. **Development**:
@@ -176,9 +212,9 @@ A modern web application that helps users track and manage their personal expens
 
 ### Environment Variables
 
-- `SUPABASE_URL`: Your Supabase project URL
-- `SUPABASE_ANON_KEY`: Public API key
-- `SUPABASE_SERVICE_ROLE_KEY`: Admin API key (secure)
+- `VITE_SUPABASE_URL`: Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY`: Public API key
+- `VITE_SUPABASE_SERVICE_ROLE_KEY`: Admin API key (secure)
 
 ### Supabase Setup
 
@@ -187,6 +223,24 @@ A modern web application that helps users track and manage their personal expens
 3. Configure email templates
 4. Set up database tables
 5. Apply RLS policies
+
+## 📝 Recent Updates
+
+### Code Reorganization
+
+- **Feature-based Structure**: Reorganized the codebase into a feature-based structure for better maintainability
+- **API Layer Separation**: Moved all API-related code to a dedicated `api` directory
+- **State Management**: Centralized state management in the `state` directory
+- **Shared Components**: Created a `shared` directory for reusable components
+- **Page Components**: Separated page components into a dedicated `pages` directory
+
+### New Features
+
+- **Budget Management**: Added comprehensive budget tracking functionality
+- **Income Tracking**: Added ability to track and manage income
+- **Expense Categories**: Implemented category management for better expense organization
+- **Data Visualization**: Added charts for expense categories and spending trends
+- **Settings Page**: Added user settings for customization
 
 ## 🎯 Future Enhancements
 
