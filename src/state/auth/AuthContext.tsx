@@ -40,13 +40,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       console.log("AuthProvider: Initializing auth...");
       try {
+        // First, check if we have a session in localStorage that might be stale
+        const hasLocalStorageSession = Object.keys(localStorage).some(
+          (key) =>
+            key.startsWith("supabase.auth.token") ||
+            key.includes("supabase.auth.refreshToken")
+        );
+
+        // Get current session from Supabase
         const {
           data: { session },
+          error: sessionError,
         } = await supabase.auth.getSession();
+
         console.log(
           "AuthProvider: Got session:",
-          session ? "Session exists" : "No session"
+          session ? "Session exists" : "No session",
+          "Local storage session:",
+          hasLocalStorageSession ? "Exists" : "None"
         );
+
+        // Handle potential stale session
+        if (sessionError || (hasLocalStorageSession && !session)) {
+          console.log("AuthProvider: Detected stale session, clearing...");
+          clearSession();
+          setLoading(false);
+          return;
+        }
 
         if (session?.user) {
           setUser(session.user);
@@ -69,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               "AuthProvider: Error fetching initial profile:",
               profileError
             );
+            // If we can't get the profile, the session might be invalid
+            clearSession();
           } finally {
             setLoading(false);
           }
@@ -79,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error("AuthProvider: Error initializing auth:", error);
+        clearSession();
         setLoading(false);
       }
     };
@@ -96,19 +119,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session ? "Session exists" : "No session"
       );
 
+      // Handle specific auth events
+      if (event === "SIGNED_OUT") {
+        console.log(
+          `AuthProvider: Handling ${event} event, clearing session...`
+        );
+        clearSession();
+        setLoading(false);
+        return;
+      }
+
+      // Handle token refresh errors
+      if (event === "TOKEN_REFRESHED" && !session) {
+        console.log("AuthProvider: Token refresh failed, clearing session...");
+        clearSession();
+        setLoading(false);
+        return;
+      }
+
       if (session?.user) {
         setUser(session.user);
         try {
           console.log(
             "AuthProvider: Fetching user profile after auth change..."
           );
-          let profile = await getUserProfile(session.user.id);
-          if (!profile && event === "SIGNED_IN") {
-            console.log(
-              "AuthProvider: No profile found, creating new profile..."
-            );
-            profile = await createProfile(session.user);
-          }
+          const profile = await getUserProfile(session.user.id);
           console.log(
             "AuthProvider: Got user profile after auth change:",
             profile ? "Profile exists" : "No profile"
@@ -116,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(profile);
         } catch (error) {
           console.error("AuthProvider: Error fetching user profile:", error);
+          // Don't clear session on profile fetch error, just set profile to null
+          setProfile(null);
         } finally {
           setLoading(false);
         }
@@ -144,19 +181,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log(
         "AuthProvider: Sign in result:",
         error ? "Error occurred" : "Success",
-        data?.user ? "User exists" : "No user"
+        data?.user ? "User exists" : "No user",
+        error ? `Error: ${error.message}` : ""
       );
 
       if (!error && data.user) {
+        console.log("AuthProvider: Setting user in state...");
         setUser(data.user);
         try {
+          console.log("AuthProvider: Fetching user profile...");
           const userProfile = await getUserProfile(data.user.id);
-          setProfile(userProfile);
+          console.log(
+            "AuthProvider: Profile fetch result:",
+            userProfile ? "Success" : "No profile found"
+          );
+          if (!userProfile) {
+            console.log("AuthProvider: Creating new profile...");
+            try {
+              const newProfile = await createProfile(data.user);
+              setProfile(newProfile);
+            } catch (createError) {
+              console.error(
+                "AuthProvider: Error creating profile:",
+                createError
+              );
+              // Don't block sign in on profile creation error
+              setProfile(null);
+            }
+          } else {
+            setProfile(userProfile);
+          }
         } catch (profileError) {
           console.error(
             "AuthProvider: Error fetching profile after sign in:",
             profileError
           );
+          // Don't block sign in on profile fetch error
+          setProfile(null);
         }
       }
 
@@ -200,6 +261,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const clearSession = () => {
+    console.log("AuthProvider: Clearing session state...");
+    // Clear auth state from context
+    setUser(null);
+    setProfile(null);
+    // Clear storage
+    localStorage.removeItem("supabase.auth.token");
+    sessionStorage.removeItem("supabase.auth.token");
+    // Remove any other auth-related items
+    const authKeys = Object.keys(localStorage).filter(
+      (key) => key.startsWith("supabase.auth.") || key.includes("token")
+    );
+    authKeys.forEach((key) => localStorage.removeItem(key));
+
+    const sessionKeys = Object.keys(sessionStorage).filter(
+      (key) => key.startsWith("supabase.auth.") || key.includes("token")
+    );
+    sessionKeys.forEach((key) => sessionStorage.removeItem(key));
+
+    console.log("AuthProvider: Session state cleared");
+  };
+
   const signOut = async () => {
     console.log("AuthProvider: Starting sign out process...");
     setLoading(true);
@@ -210,8 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error ? "Error occurred" : "Success"
       );
       // Clear any remaining auth state
-      localStorage.clear();
-      sessionStorage.clear();
+      clearSession();
       return { error };
     } finally {
       console.log(
@@ -262,6 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     resetPassword,
     updateProfile,
+    clearSession,
   };
 
   console.log("AuthProvider: Current state:", {

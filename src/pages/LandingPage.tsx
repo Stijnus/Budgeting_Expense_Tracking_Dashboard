@@ -22,7 +22,7 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, resetPassword, clearSession } = useAuth();
 
   // Update isSignUp when initialMode changes
   useEffect(() => {
@@ -60,11 +60,23 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
           "Registration successful! Please check your email for confirmation."
         );
       } else {
-        const { error } = await signIn(email, password);
-        if (error) throw error;
+        console.log("Starting login process...");
+        // Clear any existing session before attempting to sign in
+        // This helps prevent issues with stale sessions
+        console.log("Clearing existing session...");
+        clearSession();
 
-        // Successfully logged in, navigate to dashboard
-        console.log("Sign in successful, navigating to dashboard");
+        console.log("Attempting to sign in...");
+        const { error } = await signIn(email, password);
+        if (error) {
+          console.error("Sign in error:", error);
+          throw error;
+        }
+
+        // Successfully logged in, wait a bit for auth state to update
+        console.log("Sign in successful, waiting for auth state to update...");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log("Navigating to dashboard...");
         navigate("/dashboard");
       }
     } catch (error) {
@@ -75,6 +87,7 @@ export default function LandingPage({ initialMode }: LandingPageProps) {
         }`
       );
     } finally {
+      console.log("Auth process complete, setting loading to false");
       setLoading(false);
     }
   };

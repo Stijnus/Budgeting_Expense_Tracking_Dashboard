@@ -27,6 +27,7 @@ export interface AuthContextType {
   signOut: () => Promise<{ error: AuthError | null }>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
+  clearSession: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
